@@ -1,7 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import FadeIn from "@/components/FadeIn";
-import { EVENTS } from "@/lib/data";
+import { Ornament } from "@/components/Ornament";
+import { EVENTS, SITE } from "@/lib/data";
 
 export default function HomePage() {
   const featured = EVENTS[0];
@@ -9,91 +10,204 @@ export default function HomePage() {
 
   return (
     <>
-      {/* 1. Featured concert at the very top */}
-      <section className="relative overflow-hidden bg-cream-50">
-        <div className="pointer-events-none absolute inset-0 -z-10">
-          <div
-            className="absolute inset-0 opacity-70"
-            style={{
-              backgroundImage:
-                "radial-gradient(900px 500px at 15% -5%, rgba(197,159,74,.14), transparent 60%), radial-gradient(900px 500px at 100% 10%, rgba(31,59,130,.12), transparent 60%)"
-            }}
-          />
-        </div>
+      {/* 1. Hero: next concert, editorial */}
+      {featured && (
+        <section className="relative isolate overflow-hidden">
+          {/* Background: cream + soft organ photo on the right */}
+          <div className="absolute inset-0 -z-10 bg-cream-50">
+            <div
+              aria-hidden
+              className="absolute inset-y-0 right-0 hidden w-[62%] bg-cover bg-center opacity-[0.22] md:block"
+              style={{
+                backgroundImage: "url('/images/orgel/mayer-orgel-lisdorf.png')"
+              }}
+            />
+            <div
+              aria-hidden
+              className="absolute inset-0"
+              style={{
+                backgroundImage:
+                  "linear-gradient(90deg, rgba(253,251,246,1) 38%, rgba(253,251,246,0.6) 62%, rgba(253,251,246,0) 100%), radial-gradient(900px 500px at 10% 0%, rgba(197,159,74,0.12), transparent 60%), radial-gradient(900px 500px at 100% 100%, rgba(31,59,130,0.08), transparent 60%)"
+              }}
+            />
+          </div>
 
-        <div className="container-xl pt-10 pb-16 sm:pt-16 sm:pb-24">
-          <FadeIn>
-            <div className="eyebrow">Nächstes Konzert</div>
-          </FadeIn>
+          <div className="container-xl pt-14 pb-20 sm:pt-20 sm:pb-28 md:pt-24 md:pb-36">
+            <div className="grid items-end gap-14 md:grid-cols-12">
+              {/* Left column: editorial headline block */}
+              <div className="md:col-span-8 md:pr-6 lg:col-span-7">
+                <FadeIn>
+                  <div className="mb-8 flex items-center gap-4 text-[11px] font-semibold uppercase tracking-[0.3em] text-gold-700">
+                    <Ornament />
+                    <span>Nächstes Konzert · Lisdorf</span>
+                  </div>
+                </FadeIn>
 
-          {featured && (
-            <FadeIn>
-              <article className="mt-6 grid overflow-hidden rounded-[32px] border border-royal-700/10 bg-white shadow-plate md:grid-cols-12">
-                <div className="relative min-h-[320px] md:col-span-6 md:min-h-[520px]">
-                  <div
-                    className="absolute inset-0 bg-cover bg-center"
-                    style={{
-                      backgroundImage:
-                        "url('https://images.unsplash.com/photo-1465225314224-587cd83d322b?auto=format&fit=crop&w=1800&q=80')"
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-br from-royal-900/40 via-transparent to-transparent" />
-                  <div className="absolute left-7 top-7 flex flex-col items-center rounded-2xl bg-royal-800 px-5 py-4 text-center text-cream-50 shadow-plate">
-                    <div className="text-[10px] uppercase tracking-[0.22em] text-gold-200">
-                      {new Date(featured.date).toLocaleDateString("de-DE", {
-                        month: "short"
-                      }).replace(".", "")}
-                    </div>
-                    <div className="display text-4xl text-cream-50">
-                      {new Date(featured.date)
-                        .getDate()
-                        .toString()
-                        .padStart(2, "0")}
-                    </div>
-                    {featured.time && (
-                      <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-cream-50/70">
-                        {featured.time.replace(" Uhr", "")}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-col justify-center p-8 md:col-span-6 md:p-14">
-                  <div className="flex flex-wrap items-center gap-3 text-[11px] uppercase tracking-[0.22em]">
-                    <span className="text-gold-600">{featured.category}</span>
-                    <span className="text-neutral-400">· {featured.dateLabel}</span>
-                  </div>
-                  <h1 className="display mt-4 text-4xl leading-[1.05] sm:text-5xl md:text-6xl">
-                    {featured.title}
+                <FadeIn delay={0.05}>
+                  <h1 className="display text-[clamp(44px,8vw,112px)] leading-[0.95] tracking-tight text-royal-900">
+                    {featured.title.split(" ")[0]}
+                    <br />
+                    <span className="italic text-royal-700">
+                      {featured.title.split(" ").slice(1).join(" ")}
+                    </span>
                   </h1>
-                  {featured.subtitle && (
-                    <p className="mt-3 text-lg italic text-neutral-600">
+                </FadeIn>
+
+                {featured.subtitle && (
+                  <FadeIn delay={0.1}>
+                    <p className="mt-6 max-w-xl text-lg italic leading-snug text-neutral-700 sm:text-xl">
                       {featured.subtitle}
                     </p>
-                  )}
-                  <p className="mt-5 text-[15px] leading-relaxed text-neutral-700">
-                    {featured.description}
-                  </p>
-                  <div className="mt-7 flex flex-wrap items-center gap-4">
+                  </FadeIn>
+                )}
+
+                <FadeIn delay={0.15}>
+                  <div className="mt-10 flex flex-wrap items-center gap-6 border-t border-royal-700/15 pt-6 text-sm text-neutral-700">
+                    <div className="flex items-center gap-3">
+                      <svg
+                        aria-hidden
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        className="text-gold-600"
+                      >
+                        <rect x="3" y="5" width="18" height="16" rx="2" />
+                        <path d="M3 9h18M8 3v4M16 3v4" strokeLinecap="round" />
+                      </svg>
+                      <span className="text-royal-900">{featured.dateLabel}</span>
+                    </div>
+                    {featured.time && (
+                      <div className="flex items-center gap-3">
+                        <svg
+                          aria-hidden
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          className="text-gold-600"
+                        >
+                          <circle cx="12" cy="12" r="9" />
+                          <path d="M12 7v5l3 2" strokeLinecap="round" />
+                        </svg>
+                        <span className="text-royal-900">{featured.time}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3">
+                      <svg
+                        aria-hidden
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        className="text-gold-600"
+                      >
+                        <path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z" />
+                        <circle cx="12" cy="10" r="2.5" />
+                      </svg>
+                      <span>{featured.venue}</span>
+                    </div>
+                  </div>
+                </FadeIn>
+
+                <FadeIn delay={0.2}>
+                  <div className="mt-10 flex flex-wrap items-center gap-4">
                     <Link
                       href={featured.ticket ?? "/kontakt"}
-                      className="btn-primary text-base px-7 py-3.5"
+                      className="btn-primary text-base px-8 py-4"
                     >
                       Karten bestellen
+                      <svg
+                        aria-hidden
+                        width="16"
+                        height="16"
+                        viewBox="0 0 20 20"
+                        fill="none"
+                      >
+                        <path
+                          d="M4 10h12M12 5l5 5-5 5"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
                     </Link>
                     <Link
                       href="/verein"
-                      className="btn-ghost text-base px-7 py-3.5"
+                      className="btn-ghost text-base px-8 py-4"
                     >
                       Über uns
                     </Link>
                   </div>
-                  <div className="mt-6 text-sm text-neutral-500">{featured.venue}</div>
+                </FadeIn>
+              </div>
+
+              {/* Right column: elegant date card, floating */}
+              <FadeIn delay={0.1} className="md:col-span-4 lg:col-span-5">
+                <div className="relative mx-auto max-w-sm md:ml-auto md:mr-0">
+                  <div className="relative overflow-hidden rounded-[28px] border border-royal-700/10 bg-white shadow-plate">
+                    <div className="relative aspect-[4/5]">
+                      <Image
+                        src="/images/orgel/mayer-orgel-lisdorf.png"
+                        alt="MAYER-Orgel der Pfarrkirche St. Crispinus und Crispinianus Lisdorf"
+                        fill
+                        priority
+                        sizes="(min-width: 1024px) 40vw, (min-width: 768px) 38vw, 90vw"
+                        className="object-cover"
+                      />
+                      <div
+                        aria-hidden
+                        className="absolute inset-0 bg-gradient-to-t from-royal-900/70 via-royal-900/10 to-transparent"
+                      />
+                      <div className="absolute inset-x-6 bottom-6 text-cream-50">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gold-200">
+                          MAYER-Orgel
+                        </div>
+                        <div className="mt-1 text-sm text-cream-50/85">
+                          Pfarrkirche St. Crispinus und Crispinianus
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Floating date stamp */}
+                  <div className="pointer-events-none absolute -left-4 -top-6 flex flex-col items-center rounded-2xl bg-royal-800 px-5 py-4 text-center text-cream-50 shadow-plate sm:-left-6 sm:-top-8">
+                    <div className="text-[10px] uppercase tracking-[0.3em] text-gold-200">
+                      {new Date(featured.date)
+                        .toLocaleDateString("de-DE", { month: "short" })
+                        .replace(".", "")}
+                    </div>
+                    <div className="display mt-0.5 text-5xl leading-none text-cream-50">
+                      {new Date(featured.date).getDate().toString().padStart(2, "0")}
+                    </div>
+                    <div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-cream-50/70">
+                      {new Date(featured.date).getFullYear()}
+                    </div>
+                  </div>
                 </div>
-              </article>
+              </FadeIn>
+            </div>
+
+            {/* Quiet signature line under the hero */}
+            <FadeIn delay={0.3}>
+              <div className="mt-20 flex flex-wrap items-center justify-between gap-4 border-t border-royal-700/10 pt-6 text-[11px] font-semibold uppercase tracking-[0.3em] text-gold-700 sm:mt-28">
+                <span>Seit {SITE.foundedYear} · Förderverein Klingende Kirche</span>
+                <Link href="/termine" className="group inline-flex items-center gap-2 text-royal-700">
+                  Alle Termine
+                  <span className="transition group-hover:translate-x-1">→</span>
+                </Link>
+              </div>
             </FadeIn>
-          )}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
       {/* 2. Upcoming events strip */}
       {upcoming.length > 0 && (
