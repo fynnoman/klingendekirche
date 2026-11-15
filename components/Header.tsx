@@ -4,10 +4,13 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { NAV, SITE } from "@/lib/data";
+import { LanguageSwitch } from "./LanguageProvider";
+import SearchOverlay from "./SearchOverlay";
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -30,11 +33,24 @@ export default function Header() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    setOpen(false);
+    setSearchOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <header className="sticky top-0 z-40">
-      {/* Top info bar */}
       <div className="hidden bg-royal-800 text-cream-50 md:block">
         <div className="container-wide flex items-center justify-between py-2 text-[12px] tracking-wide">
           <span className="opacity-90">{SITE.nameLong}</span>
@@ -47,7 +63,6 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Main bar */}
       <div
         className={`transition-colors duration-200 ${
           scrolled
@@ -69,7 +84,9 @@ export default function Header() {
 
           <nav className="hidden items-center gap-1 lg:flex">
             {NAV.map((item) => {
-              const active = item.label === "Startseite" && pathname === "/";
+              const active =
+                (item.href === "/" && pathname === "/") ||
+                (item.href !== "/" && pathname.startsWith(item.href));
               return (
                 <Link
                   key={item.label}
@@ -82,46 +99,90 @@ export default function Header() {
                 >
                   {item.label}
                   <span
-                    className={`absolute inset-x-3 -bottom-0.5 h-px origin-center scale-x-0 bg-gold-400 transition-transform ${
-                      active ? "scale-x-100" : "group-hover:scale-x-100"
+                    className={`absolute inset-x-3 -bottom-0.5 h-px origin-center bg-gold-400 transition-transform ${
+                      active ? "scale-x-100" : "scale-x-0"
                     }`}
                   />
                 </Link>
               );
             })}
-            <Link href="/" className="btn-primary ml-4">
+
+            <button
+              onClick={() => setSearchOpen(true)}
+              aria-label="Suche öffnen"
+              className="ml-3 flex items-center gap-2 rounded-full border border-royal-700/15 bg-white/60 px-3 py-2 text-[12px] text-neutral-600 hover:text-royal-800"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="M20 20l-4-4" strokeLinecap="round" />
+              </svg>
+              Suche
+              <span className="rounded border border-royal-700/15 px-1.5 py-0.5 text-[10px] font-mono text-neutral-500">
+                ⌘K
+              </span>
+            </button>
+
+            <LanguageSwitch className="ml-2" />
+
+            <Link href="/termine" className="btn-primary ml-3">
               Karten bestellen
             </Link>
           </nav>
 
-          <button
-            onClick={() => setOpen((v) => !v)}
-            className="rounded-full border border-royal-700/15 bg-white/60 p-2.5 lg:hidden"
-            aria-label="Menü"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="text-royal-800"
+          <div className="flex items-center gap-2 lg:hidden">
+            <button
+              onClick={() => setSearchOpen(true)}
+              aria-label="Suche öffnen"
+              className="rounded-full border border-royal-700/15 bg-white/60 p-2.5"
             >
-              {open ? (
-                <path d="M4 4l12 12M16 4L4 16" strokeLinecap="round" />
-              ) : (
-                <>
-                  <path d="M3 6h14" strokeLinecap="round" />
-                  <path d="M3 10h14" strokeLinecap="round" />
-                  <path d="M3 14h14" strokeLinecap="round" />
-                </>
-              )}
-            </svg>
-          </button>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="text-royal-800"
+              >
+                <circle cx="11" cy="11" r="7" />
+                <path d="M20 20l-4-4" strokeLinecap="round" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setOpen((v) => !v)}
+              className="rounded-full border border-royal-700/15 bg-white/60 p-2.5"
+              aria-label="Menü"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="text-royal-800"
+              >
+                {open ? (
+                  <path d="M4 4l12 12M16 4L4 16" strokeLinecap="round" />
+                ) : (
+                  <>
+                    <path d="M3 6h14" strokeLinecap="round" />
+                    <path d="M3 10h14" strokeLinecap="round" />
+                    <path d="M3 14h14" strokeLinecap="round" />
+                  </>
+                )}
+              </svg>
+            </button>
+          </div>
         </div>
 
-        {/* Mobile menu */}
         {open && (
           <div className="lg:hidden">
             <div className="container-wide pb-5">
@@ -142,10 +203,18 @@ export default function Header() {
                   Fon: {SITE.phone}
                 </a>
               </nav>
+              <div className="mt-4 flex items-center justify-between">
+                <LanguageSwitch />
+                <Link href="/termine" className="btn-primary">
+                  Karten bestellen
+                </Link>
+              </div>
             </div>
           </div>
         )}
       </div>
+
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }

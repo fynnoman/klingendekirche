@@ -15,8 +15,8 @@ const subnav = [
   { label: "Der Verein", href: "/verein" },
   { label: "Vorstand", href: "/verein/vorstand" },
   { label: "Satzung", href: "/verein/satzung" },
-  { label: "Mitgliedschaft", href: "/verein/mitgliedschaft" },
-  { label: "Die Orgel", href: "/verein/orgel" },
+  { label: "Mitgliedschaft", href: "/mitgliedschaft" },
+  { label: "Die Orgel", href: "/orgel" },
   { label: "Die Kirche", href: "/verein/kirche" }
 ];
 

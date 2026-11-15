@@ -10,31 +10,37 @@ export const SITE = {
   address: {
     chair: "Manfred Boßmann, 1. Vorsitzender",
     street: "Weißdornflur 9",
-    city: "66740 Saarlouis"
+    city: "66740 Saarlouis-Lisdorf"
   },
   church: {
     name: "Kath. Pfarrkirche St. Crispinus und Crispinianus",
     street: "Großstraße",
     city: "66740 Saarlouis-Lisdorf"
   },
+  bank: {
+    name: "Kreissparkasse Saarlouis",
+    holder: "Förderverein Klingende Kirche Saarlouis-Lisdorf e.V.",
+    iban: "DE04 5935 0110 0074 3005 00",
+    bic: "KRSADE55XXX"
+  },
   foundedYear: 1993,
-  members: 275,
+  members: 288,
   concertsSince1993: 240
 };
 
 export const NAV: { label: string; href: string }[] = [
-  { label: "Startseite", href: "/" },
-  { label: "Termine & Neues", href: "/" },
-  { label: "Galerien", href: "/" },
-  { label: "Verein", href: "/" },
-  { label: "Archiv", href: "/" },
-  { label: "Partner", href: "/" },
-  { label: "Kontakt", href: "/" }
+  { label: "Start", href: "/" },
+  { label: "Termine", href: "/termine" },
+  { label: "Mitgliedschaft", href: "/mitgliedschaft" },
+  { label: "Orgel", href: "/orgel" },
+  { label: "Verein", href: "/verein" },
+  { label: "Partner", href: "/partner" },
+  { label: "Kontakt", href: "/kontakt" }
 ];
 
 export type EventItem = {
   id: string;
-  date: string; // ISO
+  date: string;
   dateLabel: string;
   time?: string;
   title: string;
@@ -222,107 +228,54 @@ export const GALLERIES: GalleryItem[] = [
       "Ein feierlicher Gottesdienst und ein anschließendes Konzert markierten die Weihe des neuen 32-Fuß-Registers. Die Resonanz der Besucher war außergewöhnlich.",
     cover:
       "https://images.unsplash.com/photo-1465225314224-587cd83d322b?auto=format&fit=crop&w=1400&q=60"
-  },
-  {
-    id: "orgelsommer-eroeffnung",
-    date: "2026-06-28",
-    dateLabel: "28. Juni 2026",
-    title: "Eröffnung des Orgelsommers im Landkreis Saarlouis",
-    subtitle: "Musikalischer Auftakt in der Lisdorfer Kirche",
-    excerpt:
-      "Der Orgelsommer im Landkreis Saarlouis wurde mit einem Auftakt der Extraklasse in der katholischen Kirche „St. Crispinus und Crispinianus“ eröffnet.",
-    cover:
-      "https://images.unsplash.com/photo-1507838153414-b4b713384a76?auto=format&fit=crop&w=1400&q=60"
-  },
-  {
-    id: "orgel-fahrradrunde",
-    date: "2026-06-14",
-    dateLabel: "14. Juni 2026",
-    title: "Dritte Saarlouiser Orgel-Fahrrad-Runde",
-    subtitle: "Kulturerlebnis inklusive Fahrradspaß",
-    excerpt:
-      "Der Lisdorfer Förderverein „Klingende Kirche“ lud zur dritten Fahrradtour von Orgel zu Orgel. Ein geselliger Tag voller Klang und Bewegung.",
-    cover:
-      "https://images.unsplash.com/photo-1493612276216-ee3925520721?auto=format&fit=crop&w=1400&q=60"
-  },
-  {
-    id: "gedenkkonzert-schlee",
-    date: "2026-05-07",
-    dateLabel: "07. Mai 2026",
-    title: "Gedenkkonzert in memoriam Thomas Daniel Schlee",
-    subtitle: "Ein Abend des Erinnerns",
-    excerpt:
-      "Die Menschen versammelten sich in der Kirche „St. Crispinus und St. Crispinianus“ zu einem Konzert, das dem verstorbenen Komponisten gewidmet war.",
-    cover:
-      "https://images.unsplash.com/photo-1465225314224-587cd83d322b?auto=format&fit=crop&w=1400&q=60"
-  },
-  {
-    id: "kompositionswettbewerb-11",
-    date: "2026-04-28",
-    dateLabel: "28. April 2026",
-    title: "11. Internationaler Orgel-Kompositionswettbewerb",
-    subtitle: "Ergebnisse und Preisträger",
-    excerpt:
-      "Der vom Lisdorfer Förderverein initiierte und organisierte Wettbewerb erlebte seine 11. Auflage mit Unterstützung des Kulturamts.",
-    cover:
-      "https://images.unsplash.com/photo-1519682337058-a94d519337bc?auto=format&fit=crop&w=1400&q=60"
-  },
-  {
-    id: "jugend-requiem-fackler",
-    date: "2026-04-21",
-    dateLabel: "21. April 2026",
-    title: "Jugend-Ensembles begeistern mit „Deutschem Requiem“",
-    subtitle: "Landesweite Berichterstattung in der Saarbrücker Zeitung",
-    excerpt:
-      "Der Landes-Jugend-Chor und junge Instrumentalisten zogen das Publikum mit einer bewegenden Aufführung in ihren Bann.",
-    cover:
-      "https://images.unsplash.com/photo-1465225314224-587cd83d322b?auto=format&fit=crop&w=1400&q=60"
-  },
-  {
-    id: "dichterlesung-koster",
-    date: "2026-03-16",
-    dateLabel: "16. März 2026",
-    title: "Dichterlesung mit Helga Koster",
-    subtitle: "Literatur und Orgelmusik im Dialog",
-    excerpt:
-      "Die Autorin Helga Koster las in der Lisdorfer Kirche, begleitet von Regionalkantor Markus Schaubel an der Orgel.",
-    cover:
-      "https://images.unsplash.com/photo-1519682337058-a94d519337bc?auto=format&fit=crop&w=1400&q=60"
-  },
-  {
-    id: "jahresschlusskonzert-2025",
-    date: "2025-12-30",
-    dateLabel: "30. Dezember 2025",
-    title: "Glanzvolles Jahresschlusskonzert",
-    subtitle: "Chorgemeinschaft MGV 1859 Lisdorf und Freunde",
-    excerpt:
-      "In einer Zeit, in der die Tage kürzer werden, öffnete das Jahresschlusskonzert Türen zu Wärme, Licht und Gemeinschaft.",
-    cover:
-      "https://images.unsplash.com/photo-1507838153414-b4b713384a76?auto=format&fit=crop&w=1400&q=60"
-  },
-  {
-    id: "vereinsfahrt-paris",
-    date: "2025-10-04",
-    dateLabel: "04. Oktober 2025",
-    title: "Vereinsfahrt nach Paris",
-    subtitle: "Reisebericht des Fördervereins",
-    excerpt:
-      "27 Teilnehmer aus neun Ländern reisten im Rahmen der Orgelakademie nach Paris. Ein Bericht aus der Hauptstadt der Orgelmusik.",
-    cover:
-      "https://images.unsplash.com/photo-1431274172761-fca41d930114?auto=format&fit=crop&w=1400&q=60"
   }
 ];
 
-export const PARTNERS: { name: string; note?: string }[] = [
-  { name: "Landkreis Saarlouis" },
-  { name: "Kreisstadt Saarlouis" },
-  { name: "Stadtverband Saarbrücken" },
-  { name: "Kath. Kirchengemeinde St. Ludwig Saarlouis" },
-  { name: "Ministerium für Bildung und Kultur" },
-  { name: "KMS – Kulturamt Saarlouis" },
-  { name: "Musikfestspiele Saar" },
-  { name: "Hugo Mayer Orgelbau GmbH", note: "Orgelbaumeister des Lisdorfer Instruments" },
-  { name: "Bistum Trier" }
+export type PartnerLogo = {
+  name: string;
+  logo: string;
+  note?: string;
+  href?: string;
+};
+
+export const PARTNERS: PartnerLogo[] = [
+  {
+    name: "Landkreis Saarlouis",
+    logo: "/images/partners/01-landkreis-saarlouis.png"
+  },
+  {
+    name: "Kreisstadt Saarlouis",
+    logo: "/images/partners/02-kreisstadt-saarlouis.jpg"
+  },
+  {
+    name: "Stadtverband der kulturellen Vereine Saarlouis e.V.",
+    logo: "/images/partners/03-stadtverband-kulturelle-vereine.jpg"
+  },
+  {
+    name: "Katholische Kirchengemeinde Saarlouis",
+    logo: "/images/partners/04-katholische-kirchengemeinde-saarlouis.jpg"
+  },
+  {
+    name: "Gesellschaft für Bildung und Kultur im Landkreis Saarlouis mbH",
+    logo: "/images/partners/05-gesellschaft-bildung-kultur.jpg"
+  },
+  {
+    name: "Kreismusikschule Saarlouis",
+    logo: "/images/partners/06-kreismusikschule-saarlouis.jpg"
+  },
+  {
+    name: "Musikfestspiele Saar",
+    logo: "/images/partners/07-musikfestspiele-saar.jpg"
+  },
+  {
+    name: "Hugo Mayer Orgelbau GmbH",
+    logo: "/images/partners/08-hugo-mayer-orgelbau.jpg",
+    note: "Orgelbaumeister des Lisdorfer Instruments"
+  },
+  {
+    name: "Bistum Trier",
+    logo: "/images/partners/09-bistum-trier.jpg"
+  }
 ];
 
 export const BOARD: { role: string; name: string }[] = [
@@ -341,4 +294,30 @@ export const ORGAN_FACTS: { label: string; value: string }[] = [
   { label: "Pfeifen", value: "über 2.600" },
   { label: "Trakturen", value: "mechanisch" },
   { label: "Weihe", value: "1993, Erweiterung 2026" }
+];
+
+export const NEW_MEMBERS_2026: string[] = [
+  "Ernst Schmitt, Ensdorf",
+  "Dr. Cordelia Rose, Schwanewede",
+  "Helga Koster, Saarlouis",
+  "Jann Endrik Rose, Schwanewede",
+  "Gertrud Pillon, Bous",
+  "Margarete Strauß, Bous",
+  "Sabine Recktenwald, Spiesen-Elversberg",
+  "Gerd Mosel, Saarlouis",
+  "Prof. Violeta Dinescu, Oldenburg",
+  "Prof. Pier Damiano Peretti, Wien",
+  "Prof. Daniel Glaus, Bern",
+  "Markus Comtesse, Saarlouis",
+  "Stefan Bost, Lisdorf",
+  "Volker Schwartz, Schwalbach",
+  "Gerald Purucker, Saarlouis",
+  "Monika Comtesse, Nessetal",
+  "Pfr. Dr. Ulrich Graf von Plattenberg"
+];
+
+export const DECEASED_MEMBERS_2026: string[] = [
+  "Burkhardt Pracht, Saarlouis-Lisdorf",
+  "Dorothea Comtesse, Saarlouis",
+  "Rita Wagner, Saarlouis-Lisdorf"
 ];
