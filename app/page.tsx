@@ -1,19 +1,21 @@
+"use client";
 import Link from "next/link";
 import Image from "next/image";
 import FadeIn from "@/components/FadeIn";
 import { Ornament } from "@/components/Ornament";
-import { EVENTS, SITE } from "@/lib/data";
+import { EVENTS, SITE, EVENT_CATEGORY_LABEL } from "@/lib/data";
+import { useLang } from "@/components/LanguageProvider";
+import { l } from "@/lib/i18n";
 
 export default function HomePage() {
   const featured = EVENTS[0];
   const upcoming = EVENTS.slice(1);
+  const { lang, t } = useLang();
 
   return (
     <>
-      {/* 1. Hero: next concert, editorial */}
       {featured && (
         <section className="relative isolate overflow-hidden">
-          {/* Background: cream + soft organ photo on the right */}
           <div className="absolute inset-0 -z-10 bg-cream-50">
             <div
               aria-hidden
@@ -34,29 +36,34 @@ export default function HomePage() {
 
           <div className="container-xl pt-14 pb-20 sm:pt-20 sm:pb-28 md:pt-24 md:pb-36">
             <div className="grid items-end gap-14 md:grid-cols-12">
-              {/* Left column: editorial headline block */}
               <div className="md:col-span-8 md:pr-6 lg:col-span-7">
                 <FadeIn>
                   <div className="mb-8 flex items-center gap-4 text-[11px] font-semibold uppercase tracking-[0.3em] text-gold-700">
                     <Ornament />
-                    <span>Nächstes Konzert · Lisdorf</span>
+                    <span>{t("home.next_concert_eyebrow")}</span>
                   </div>
                 </FadeIn>
 
                 <FadeIn delay={0.05}>
-                  <h1 className="display text-[clamp(44px,8vw,112px)] leading-[0.95] tracking-tight text-royal-900">
-                    {featured.title.split(" ")[0]}
-                    <br />
-                    <span className="italic text-royal-700">
-                      {featured.title.split(" ").slice(1).join(" ")}
-                    </span>
-                  </h1>
+                  {(() => {
+                    const title = l(featured.title, lang);
+                    const parts = title.split(" ");
+                    const first = parts[0];
+                    const rest = parts.slice(1).join(" ");
+                    return (
+                      <h1 className="display text-[clamp(44px,8vw,112px)] leading-[0.95] tracking-tight text-royal-900">
+                        {first}
+                        <br />
+                        <span className="italic text-royal-700">{rest}</span>
+                      </h1>
+                    );
+                  })()}
                 </FadeIn>
 
                 {featured.subtitle && (
                   <FadeIn delay={0.1}>
                     <p className="mt-6 max-w-xl text-lg italic leading-snug text-neutral-700 sm:text-xl">
-                      {featured.subtitle}
+                      {l(featured.subtitle, lang)}
                     </p>
                   </FadeIn>
                 )}
@@ -77,7 +84,9 @@ export default function HomePage() {
                         <rect x="3" y="5" width="18" height="16" rx="2" />
                         <path d="M3 9h18M8 3v4M16 3v4" strokeLinecap="round" />
                       </svg>
-                      <span className="text-royal-900">{featured.dateLabel}</span>
+                      <span className="text-royal-900">
+                        {l(featured.dateLabel, lang)}
+                      </span>
                     </div>
                     {featured.time && (
                       <div className="flex items-center gap-3">
@@ -94,7 +103,9 @@ export default function HomePage() {
                           <circle cx="12" cy="12" r="9" />
                           <path d="M12 7v5l3 2" strokeLinecap="round" />
                         </svg>
-                        <span className="text-royal-900">{featured.time}</span>
+                        <span className="text-royal-900">
+                          {l(featured.time, lang)}
+                        </span>
                       </div>
                     )}
                     <div className="flex items-center gap-3">
@@ -111,7 +122,7 @@ export default function HomePage() {
                         <path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z" />
                         <circle cx="12" cy="10" r="2.5" />
                       </svg>
-                      <span>{featured.venue}</span>
+                      <span>{l(featured.venue, lang)}</span>
                     </div>
                   </div>
                 </FadeIn>
@@ -122,14 +133,8 @@ export default function HomePage() {
                       href={featured.ticket ?? "/kontakt"}
                       className="btn-primary text-base px-8 py-4"
                     >
-                      Karten bestellen
-                      <svg
-                        aria-hidden
-                        width="16"
-                        height="16"
-                        viewBox="0 0 20 20"
-                        fill="none"
-                      >
+                      {t("home.book_tickets")}
+                      <svg aria-hidden width="16" height="16" viewBox="0 0 20 20" fill="none">
                         <path
                           d="M4 10h12M12 5l5 5-5 5"
                           stroke="currentColor"
@@ -139,17 +144,13 @@ export default function HomePage() {
                         />
                       </svg>
                     </Link>
-                    <Link
-                      href="/verein"
-                      className="btn-ghost text-base px-8 py-4"
-                    >
-                      Über uns
+                    <Link href="/verein" className="btn-ghost text-base px-8 py-4">
+                      {t("home.about_us")}
                     </Link>
                   </div>
                 </FadeIn>
               </div>
 
-              {/* Right column: elegant date card, floating */}
               <FadeIn delay={0.1} className="md:col-span-4 lg:col-span-5">
                 <div className="relative mx-auto max-w-sm md:ml-auto md:mr-0">
                   <div className="relative overflow-hidden rounded-[28px] border border-royal-700/10 bg-white shadow-plate">
@@ -168,20 +169,23 @@ export default function HomePage() {
                       />
                       <div className="absolute inset-x-6 bottom-6 text-cream-50">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.3em] text-gold-200">
-                          MAYER-Orgel
+                          {lang === "en" ? "MAYER organ" : "MAYER-Orgel"}
                         </div>
                         <div className="mt-1 text-sm text-cream-50/85">
-                          Pfarrkirche St. Crispinus und Crispinianus
+                          {lang === "en"
+                            ? "St. Crispinus and Crispinianus Church"
+                            : "Pfarrkirche St. Crispinus und Crispinianus"}
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Floating date stamp */}
                   <div className="pointer-events-none absolute -left-4 -top-6 flex flex-col items-center rounded-2xl bg-royal-800 px-5 py-4 text-center text-cream-50 shadow-plate sm:-left-6 sm:-top-8">
                     <div className="text-[10px] uppercase tracking-[0.3em] text-gold-200">
                       {new Date(featured.date)
-                        .toLocaleDateString("de-DE", { month: "short" })
+                        .toLocaleDateString(lang === "en" ? "en-GB" : "de-DE", {
+                          month: "short"
+                        })
                         .replace(".", "")}
                     </div>
                     <div className="display mt-0.5 text-5xl leading-none text-cream-50">
@@ -195,12 +199,16 @@ export default function HomePage() {
               </FadeIn>
             </div>
 
-            {/* Quiet signature line under the hero */}
             <FadeIn delay={0.3}>
               <div className="mt-20 flex flex-wrap items-center justify-between gap-4 border-t border-royal-700/10 pt-6 text-[11px] font-semibold uppercase tracking-[0.3em] text-gold-700 sm:mt-28">
-                <span>Seit {SITE.foundedYear} · Förderverein Klingende Kirche</span>
-                <Link href="/termine" className="group inline-flex items-center gap-2 text-royal-700">
-                  Alle Termine
+                <span>
+                  {t("home.since")} {SITE.foundedYear} · {t("home.founded_signature")}
+                </span>
+                <Link
+                  href="/termine"
+                  className="group inline-flex items-center gap-2 text-royal-700"
+                >
+                  {t("home.all_events")}
                   <span className="transition group-hover:translate-x-1">→</span>
                 </Link>
               </div>
@@ -209,20 +217,19 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* 2. Upcoming events strip */}
       {upcoming.length > 0 && (
         <section className="border-t border-royal-700/10 bg-white">
           <div className="container-xl py-12 sm:py-16">
             <FadeIn>
               <div className="flex flex-col items-start justify-between gap-4 border-b border-royal-700/10 pb-6 sm:flex-row sm:items-end">
                 <h2 className="display text-2xl text-royal-800 sm:text-3xl">
-                  Kommende Veranstaltungen
+                  {t("home.upcoming")}
                 </h2>
                 <Link
                   href="/termine"
                   className="text-sm font-semibold uppercase tracking-[0.18em] text-royal-700 hover:text-gold-600"
                 >
-                  Alle Termine →
+                  {t("home.all_events")} →
                 </Link>
               </div>
             </FadeIn>
@@ -235,22 +242,26 @@ export default function HomePage() {
                   className="group relative flex min-w-[280px] max-w-[320px] flex-1 shrink-0 snap-start flex-col rounded-2xl border border-royal-700/10 bg-cream-50 p-6 transition hover:border-gold-300 hover:shadow-card sm:min-w-[300px]"
                 >
                   <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.22em]">
-                    <span className="text-gold-600">{e.category}</span>
+                    <span className="text-gold-600">
+                      {l(EVENT_CATEGORY_LABEL[e.category], lang)}
+                    </span>
                   </div>
                   <div className="display mt-3 text-xl leading-snug text-royal-800">
-                    {e.title}
+                    {l(e.title, lang)}
                   </div>
                   {e.subtitle && (
                     <div className="mt-1 text-sm italic text-neutral-600 line-clamp-2">
-                      {e.subtitle}
+                      {l(e.subtitle, lang)}
                     </div>
                   )}
                   <div className="mt-5 border-t border-royal-700/10 pt-4 text-[13px] text-neutral-700">
-                    {e.dateLabel}
-                    {e.time && <span className="text-neutral-500"> · {e.time}</span>}
+                    {l(e.dateLabel, lang)}
+                    {e.time && (
+                      <span className="text-neutral-500"> · {l(e.time, lang)}</span>
+                    )}
                   </div>
                   <span className="mt-3 text-sm font-semibold uppercase tracking-[0.18em] text-royal-700 transition group-hover:text-gold-600">
-                    Details →
+                    {t("home.details")} →
                   </span>
                 </Link>
               ))}
@@ -259,7 +270,6 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* 3. Organ feature - central element, links to /orgel */}
       <section className="border-t border-royal-700/10 bg-cream-100/60">
         <div className="container-xl py-16 sm:py-24">
           <div className="grid items-center gap-10 md:grid-cols-12 md:gap-16">
@@ -271,35 +281,31 @@ export default function HomePage() {
                 <div className="relative aspect-[4/5]">
                   <Image
                     src="/images/orgel/mayer-orgel-lisdorf.png"
-                    alt="MAYER-Orgel in der Pfarrkirche St. Crispinus und Crispinianus Lisdorf"
+                    alt="MAYER organ"
                     fill
                     className="object-cover transition duration-[1200ms] group-hover:scale-[1.02]"
                     sizes="(min-width: 768px) 40vw, 100vw"
-                    priority
                   />
                 </div>
               </Link>
             </FadeIn>
 
             <FadeIn delay={0.1} className="md:col-span-7">
-              <div className="eyebrow">MAYER-Orgel · Lisdorf</div>
+              <div className="eyebrow">{t("home.organ_eyebrow")}</div>
               <h2 className="display mt-5 text-4xl leading-[1.05] text-royal-800 sm:text-5xl md:text-6xl">
-                Das Herzstück
+                {t("home.organ_title_a")}
                 <br />
-                <span className="italic">unseres Vereins.</span>
+                <span className="italic">{t("home.organ_title_b")}</span>
               </h2>
               <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-neutral-700">
-                Die große MAYER-Orgel der Pfarrkirche St. Crispinus und Crispinianus
-                ist das klingende Zentrum unserer Arbeit. Erfahren Sie mehr über das
-                Instrument, die Erweiterung um den Gregoriusbass 32′ und seine
-                Geschichte.
+                {t("home.organ_lead")}
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-4">
                 <Link href="/orgel" className="btn-primary">
-                  Zur Orgel
+                  {t("home.to_organ")}
                 </Link>
                 <Link href="/verein" className="btn-ghost">
-                  Über den Verein
+                  {t("home.about_association")}
                 </Link>
               </div>
             </FadeIn>
@@ -307,31 +313,30 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 4. Mitgliedschaft block - prominent */}
       <section className="border-t border-royal-700/10 bg-white">
         <div className="container-xl py-16 sm:py-20">
           <div className="grid gap-8 md:grid-cols-12">
             <FadeIn className="md:col-span-7">
               <div className="rounded-3xl border border-royal-700/10 bg-royal-800 p-10 text-cream-50 shadow-plate sm:p-14">
                 <div className="text-[11px] uppercase tracking-[0.22em] text-gold-200">
-                  Mitgliedschaft
+                  {t("home.membership_eyebrow")}
                 </div>
                 <h2 className="display mt-4 text-3xl text-cream-50 sm:text-4xl md:text-5xl">
-                  Werden Sie Teil
+                  {t("home.membership_title_a")}
                   <br />
-                  <span className="italic text-gold-200">der Klingenden Kirche.</span>
+                  <span className="italic text-gold-200">
+                    {t("home.membership_title_b")}
+                  </span>
                 </h2>
                 <p className="mt-6 max-w-xl text-[15px] leading-relaxed text-cream-50/85">
-                  Unser Verein lebt von 288 Freundinnen und Freunden der Kirchenmusik.
-                  Schon ab 2,50 € im Monat tragen Sie die Konzerte, die Orgelakademie
-                  und die Pflege der MAYER-Orgel mit.
+                  {t("home.membership_lead")}
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link
                     href="/mitgliedschaft"
                     className="inline-flex items-center justify-center gap-2 rounded-full bg-gold-400 px-6 py-3 text-sm font-medium text-royal-800 transition hover:bg-gold-300"
                   >
-                    Mitglied werden
+                    {t("home.become_member")}
                   </Link>
                   <a
                     href="/downloads/beitrittserklaerung.pdf"
@@ -339,7 +344,7 @@ export default function HomePage() {
                     rel="noopener"
                     className="inline-flex items-center justify-center gap-2 rounded-full border border-cream-50/25 px-6 py-3 text-sm font-medium text-cream-50 transition hover:bg-white/5"
                   >
-                    Beitrittserklärung (PDF)
+                    {t("home.pdf_declaration")}
                   </a>
                 </div>
               </div>
@@ -355,13 +360,13 @@ export default function HomePage() {
                     2026
                   </div>
                   <div className="display mt-3 text-2xl text-royal-800">
-                    Neue Mitglieder
+                    {t("home.new_members_card_title")}
                   </div>
                   <p className="mt-2 text-sm leading-relaxed text-neutral-700">
-                    Wir begrüßen alle Menschen, die 2026 Teil unseres Vereins wurden.
+                    {t("home.new_members_card_lead")}
                   </p>
                   <span className="mt-4 inline-block text-sm font-semibold uppercase tracking-[0.18em] text-royal-700 group-hover:text-gold-600">
-                    Ansehen →
+                    {t("home.view")} →
                   </span>
                 </Link>
               </FadeIn>
@@ -372,14 +377,16 @@ export default function HomePage() {
                   className="group block h-full rounded-2xl border border-royal-700/10 bg-cream-50 p-7 transition hover:border-gold-300 hover:shadow-card"
                 >
                   <div className="text-[11px] uppercase tracking-[0.22em] text-gold-600">
-                    In Gedenken
+                    {t("home.in_memoriam")}
                   </div>
-                  <div className="display mt-3 text-2xl text-royal-800">Nachruf</div>
+                  <div className="display mt-3 text-2xl text-royal-800">
+                    {t("home.obituary_card_title")}
+                  </div>
                   <p className="mt-2 text-sm leading-relaxed text-neutral-700">
-                    Wir gedenken unserer verstorbenen Vereinsmitglieder.
+                    {t("home.obituary_card_lead")}
                   </p>
                   <span className="mt-4 inline-block text-sm font-semibold uppercase tracking-[0.18em] text-royal-700 group-hover:text-gold-600">
-                    Ansehen →
+                    {t("home.view")} →
                   </span>
                 </Link>
               </FadeIn>

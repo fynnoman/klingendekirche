@@ -4,14 +4,16 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { NAV, SITE } from "@/lib/data";
-import { LanguageSwitch } from "./LanguageProvider";
+import { LanguageSwitch, useLang } from "./LanguageProvider";
 import SearchOverlay from "./SearchOverlay";
+import { l } from "@/lib/i18n";
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const pathname = usePathname();
+  const { lang, t } = useLang();
 
   useEffect(() => {
     let ticking = false;
@@ -53,9 +55,11 @@ export default function Header() {
     <header className="sticky top-0 z-40">
       <div className="hidden bg-royal-800 text-cream-50 md:block">
         <div className="container-wide flex items-center justify-between py-2 text-[12px] tracking-wide">
-          <span className="opacity-90">{SITE.nameLong}</span>
+          <span className="opacity-90">{l(SITE.nameLong, lang)}</span>
           <div className="flex items-center gap-5 opacity-90">
-            <span>Fon: {SITE.phone}</span>
+            <span>
+              {t("header.phone")}: {SITE.phone}
+            </span>
             <a href={`mailto:${SITE.email}`} className="hover:text-gold-200">
               {SITE.email}
             </a>
@@ -89,7 +93,7 @@ export default function Header() {
                 (item.href !== "/" && pathname.startsWith(item.href));
               return (
                 <Link
-                  key={item.label}
+                  key={item.labelKey}
                   href={item.href}
                   className={`relative rounded-full px-3 py-2 text-[13px] font-medium tracking-wide transition ${
                     active
@@ -97,7 +101,7 @@ export default function Header() {
                       : "text-neutral-700 hover:text-royal-800"
                   }`}
                 >
-                  {item.label}
+                  {t(item.labelKey as any)}
                   <span
                     className={`absolute inset-x-3 -bottom-0.5 h-px origin-center bg-gold-400 transition-transform ${
                       active ? "scale-x-100" : "scale-x-0"
@@ -123,7 +127,7 @@ export default function Header() {
                 <circle cx="11" cy="11" r="7" />
                 <path d="M20 20l-4-4" strokeLinecap="round" />
               </svg>
-              Suche
+              {t("header.search")}
               <span className="rounded border border-royal-700/15 px-1.5 py-0.5 text-[10px] font-mono text-neutral-500">
                 ⌘K
               </span>
@@ -132,7 +136,7 @@ export default function Header() {
             <LanguageSwitch className="ml-2" />
 
             <Link href="/termine" className="btn-primary ml-3">
-              Karten bestellen
+              {t("header.tickets")}
             </Link>
           </nav>
 
@@ -189,24 +193,24 @@ export default function Header() {
               <nav className="flex flex-col divide-y divide-royal-700/10 rounded-2xl border border-royal-700/10 bg-white shadow-card">
                 {NAV.map((item) => (
                   <Link
-                    key={item.label}
+                    key={item.labelKey}
                     href={item.href}
                     className="px-5 py-3 text-sm font-medium text-neutral-800 hover:bg-cream-100 hover:text-royal-800"
                   >
-                    {item.label}
+                    {t(item.labelKey as any)}
                   </Link>
                 ))}
                 <a
                   href={`tel:${SITE.phoneHref}`}
                   className="px-5 py-3 text-sm font-medium text-royal-700"
                 >
-                  Fon: {SITE.phone}
+                  {t("header.phone")}: {SITE.phone}
                 </a>
               </nav>
               <div className="mt-4 flex items-center justify-between">
                 <LanguageSwitch />
                 <Link href="/termine" className="btn-primary">
-                  Karten bestellen
+                  {t("header.tickets")}
                 </Link>
               </div>
             </div>

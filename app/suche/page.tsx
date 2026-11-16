@@ -3,18 +3,20 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import PageHero from "@/components/PageHero";
 import { buildIndex, search, type SearchDoc } from "@/lib/searchIndex";
+import { useLang } from "@/components/LanguageProvider";
 
 export default function SuchePage() {
   const [q, setQ] = useState("");
-  const index = useMemo(() => buildIndex(), []);
+  const { lang, t } = useLang();
+  const index = useMemo(() => buildIndex(lang), [lang]);
   const results: SearchDoc[] = useMemo(() => search(q, index), [q, index]);
 
   return (
     <>
       <PageHero
-        eyebrow="Suche"
-        title="Finden Sie, was Sie suchen"
-        subtitle="Durchsuchen Sie Konzerte, Mitgliedschaft, Orgel und Informationen aus dem Verein."
+        eyebrow={t("header.search")}
+        title={t("search.title")}
+        subtitle={t("search.subtitle")}
       />
 
       <section className="py-12">
@@ -36,7 +38,7 @@ export default function SuchePage() {
               autoFocus
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="z. B. Adventskonzert, Mitgliedschaft, Orgel …"
+              placeholder={t("search.placeholder")}
               className="w-full bg-transparent text-base outline-none placeholder:text-neutral-400"
             />
           </div>
@@ -44,13 +46,13 @@ export default function SuchePage() {
           <div className="mt-8">
             {q.trim().length < 2 && (
               <div className="rounded-2xl border border-dashed border-royal-700/15 p-10 text-center text-sm text-neutral-500">
-                Geben Sie mindestens 2 Zeichen ein, um Ergebnisse zu sehen.
+                {t("search.min_chars")}
               </div>
             )}
 
             {q.trim().length >= 2 && results.length === 0 && (
               <div className="rounded-2xl border border-dashed border-royal-700/15 p-10 text-center text-sm text-neutral-500">
-                Keine Treffer für „{q}".
+                {t("search.no_hits_prefix")} „{q}".
               </div>
             )}
 

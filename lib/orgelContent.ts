@@ -1,27 +1,46 @@
+import type { TR } from "./i18n";
+
+export type LString = string | TR;
+
 export type DispositionGroup = {
-  heading: string;
-  stops: string[];
+  heading: LString;
+  stops: LString[];
 };
 
 export type OrgelSection = {
-  eyebrow?: string;
-  title: string;
+  eyebrow?: LString;
+  title: LString;
   defaultOpen?: boolean;
-  paragraphs?: string[];
-  quote?: string;
+  paragraphs?: LString[];
+  quote?: LString;
   disposition?: DispositionGroup[];
-  listing?: { date: string; lines: string[] }[];
-  footnote?: string;
+  listing?: { date: string; lines: LString[] }[];
+  footnote?: LString;
 };
 
+export type KeyFact = { label: LString; value: LString };
+
 export type OrgelChapter = {
-  lead?: string;
+  lead?: LString;
+  era?: LString;
+  heroYear?: string;
+  keyFacts?: KeyFact[];
   sections: OrgelSection[];
 };
 
 export const ORGEL_CONTENT: Record<string, OrgelChapter> = {
   "stumm-1861": {
     lead: "Die erste Orgel der Lisdorfer Pfarrkirche wurde 1861 aus Wallerfangen erworben. Ein Werk aus der Werkstatt der Gebrüder Stumm, einer der berühmtesten Orgelbauerdynastien Deutschlands.",
+    era: "Lisdorfer Orgelgeschichte",
+    heroYear: "1861",
+    keyFacts: [
+      { label: "Orgelbauer", value: "Gebr. Stumm, Rhaunen-Sulzbach" },
+      { label: "Baujahr", value: "1841 (Wallerfangen)" },
+      { label: "Register", value: "12" },
+      { label: "Kaufpreis", value: "450 Thaler" },
+      { label: "Aufbau in Lisdorf", value: "Johann Schlaad, Waldlaubersheim" },
+      { label: "Erster Organist", value: "Hauptlehrer Michael Ritter (ab 1862)" }
+    ],
     sections: [
       {
         eyebrow: "Herkunft",
@@ -73,6 +92,16 @@ export const ORGEL_CONTENT: Record<string, OrgelChapter> = {
 
   "stumm-erweiterung-1905": {
     lead: "Nach 43 Jahren Dienst wurde die Stumm-Orgel 1905 durch die renommierte Orgelbauanstalt Dalstein & Haerpfer aus Bolchen in Lothringen umgebaut und zu einem Werk mit 15 Registern auf zwei Manualen und Pedalwerk erweitert.",
+    era: "Lisdorfer Orgelgeschichte",
+    heroYear: "1905",
+    keyFacts: [
+      { label: "Orgelbauer", value: "Dalstein & Haerpfer, Bolchen (Lothringen)" },
+      { label: "Auftrag", value: "Umbau und Erweiterung" },
+      { label: "Register", value: "15 · zwei Manuale und Pedal" },
+      { label: "Gesamtkosten", value: "5.135 Mark" },
+      { label: "Pfarrer", value: "Karl Wehn, Nikolaus Höffling, Josef Spengler" },
+      { label: "Besonderheit", value: "1917 Prospektpfeifen militärisch beschlagnahmt" }
+    ],
     sections: [
       {
         eyebrow: "Nachfolge",
@@ -152,6 +181,16 @@ export const ORGEL_CONTENT: Record<string, OrgelChapter> = {
 
   "haerpfer-1944": {
     lead: "Im Zweiten Weltkrieg entschied sich die Gemeinde für einen Neubau durch die Firma Fritz Haerpfer aus Bolchen. Die Orgel mit 31 klingenden und 2 transmittierten Stimmen wurde am 6. Februar 1944 geweiht.",
+    era: "Lisdorfer Orgelgeschichte",
+    heroYear: "1944",
+    keyFacts: [
+      { label: "Orgelbauer", value: "Fritz Haerpfer, Bolchen (Lothringen)" },
+      { label: "Beschluss", value: "21. Dezember 1941" },
+      { label: "Register", value: "31 klingend, 2 transmittiert" },
+      { label: "Kosten", value: "20.177,14 Reichsmark" },
+      { label: "Orgelweihe", value: "6. Februar 1944" },
+      { label: "Renovierung", value: "1962 durch Hugo Mayer, Heusweiler" }
+    ],
     sections: [
       {
         eyebrow: "Beschluss 1941",
@@ -283,6 +322,18 @@ export const ORGEL_CONTENT: Record<string, OrgelChapter> = {
 
   "mayer-1987": {
     lead: "1982 fasste der Verwaltungsrat den mutigen Beschluss, aus eigenen Kräften eine neue Orgel zu bauen. Fünf Jahre später, am 23. Oktober 1987, erklang die MAYER-Orgel zum ersten Mal.",
+    era: "Lisdorfer Orgelgeschichte",
+    heroYear: "1987",
+    keyFacts: [
+      { label: "Orgelbauer", value: "Hugo Mayer Orgelbau, Heusweiler / Saar" },
+      { label: "Register", value: "39 klingend, Opus 267" },
+      { label: "Werke", value: "Positiv · Hauptwerk · Schwellwerk · Pedal" },
+      { label: "Traktur", value: "mechanisch" },
+      { label: "Orgelweihe", value: "23. Oktober 1987 durch Regionaldekan Albert André" },
+      { label: "Gesamtkosten", value: "815.898,62 DM" },
+      { label: "Prospekt-Schnitzwerk", value: "Günter Mrziglod, Tholey (vollendet 1992)" },
+      { label: "Setzeranlage", value: "6.336 Einzelkombinationen · USB-Speicher" }
+    ],
     sections: [
       {
         eyebrow: "1982",
@@ -473,6 +524,8 @@ export const ORGEL_CONTENT: Record<string, OrgelChapter> = {
 
   "organisten-1987-2017": {
     lead: "Konzertorganisten, die die Lisdorfer MAYER-Orgel von der Einspielung 1987 bis zum Jahr 2017 zum Klingen brachten.",
+    era: "Organisten an der MAYER-Orgel",
+    heroYear: "1987 – 2017",
     sections: [
       {
         eyebrow: "Chronik",
@@ -598,6 +651,8 @@ export const ORGEL_CONTENT: Record<string, OrgelChapter> = {
 
   "organisten-2018-2025": {
     lead: "Konzertorganisten an der Lisdorfer MAYER-Orgel in den Jahren 2018 bis 2025.",
+    era: "Organisten an der MAYER-Orgel",
+    heroYear: "2018 – 2025",
     sections: [
       {
         eyebrow: "Chronik",

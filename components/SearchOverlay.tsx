@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { buildIndex, search, type SearchDoc } from "@/lib/searchIndex";
+import { useLang } from "./LanguageProvider";
 
 export default function SearchOverlay({
   open,
@@ -12,7 +13,8 @@ export default function SearchOverlay({
 }) {
   const [q, setQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const index = useMemo(() => buildIndex(), []);
+  const { lang, t } = useLang();
+  const index = useMemo(() => buildIndex(lang), [lang]);
   const results: SearchDoc[] = useMemo(() => search(q, index), [q, index]);
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export default function SearchOverlay({
             ref={inputRef}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Was suchen Sie? z. B. Konzert, Orgel, Mitgliedschaft …"
+            placeholder={t("search.overlay_placeholder")}
             className="w-full bg-transparent text-base outline-none placeholder:text-neutral-400"
           />
           <button
@@ -70,13 +72,13 @@ export default function SearchOverlay({
         <div className="max-h-[60vh] overflow-y-auto px-2 py-2">
           {q.trim().length < 2 && (
             <div className="px-4 py-10 text-center text-sm text-neutral-500">
-              Geben Sie mindestens 2 Zeichen ein.
+              {t("search.overlay_hint")}
             </div>
           )}
 
           {q.trim().length >= 2 && results.length === 0 && (
             <div className="px-4 py-10 text-center text-sm text-neutral-500">
-              Keine Treffer. Versuchen Sie z. B. „Adventskonzert" oder „Beitritt".
+              {t("search.overlay_empty")}
             </div>
           )}
 

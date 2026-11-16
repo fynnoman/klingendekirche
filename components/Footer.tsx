@@ -1,8 +1,12 @@
+"use client";
 import Link from "next/link";
 import Image from "next/image";
 import { SITE, NAV } from "@/lib/data";
+import { useLang } from "./LanguageProvider";
+import { l } from "@/lib/i18n";
 
 export default function Footer() {
+  const { lang, t } = useLang();
   return (
     <footer className="mt-24 border-t border-royal-700/10 bg-gradient-to-b from-cream-50 to-cream-100">
       <div className="container-wide py-16">
@@ -16,22 +20,22 @@ export default function Footer() {
               className="h-[58px] w-auto"
             />
             <p className="mt-6 max-w-sm text-sm leading-relaxed text-neutral-600">
-              Der Förderverein pflegt seit 1993 die MAYER-Orgel der Lisdorfer
-              Pfarrkirche und gestaltet ein kirchenmusikalisches Programm, das weit
-              über das Saarland hinauswirkt.
+              {t("footer.about")}
             </p>
             <div className="mt-6 text-sm text-neutral-700">
-              <div className="font-medium text-royal-800">{SITE.address.chair}</div>
+              <div className="font-medium text-royal-800">
+                {l(SITE.address.chair, lang)}
+              </div>
               <div>{SITE.address.street}</div>
               <div>{SITE.address.city}</div>
               <div className="mt-3">
-                Fon:{" "}
+                {t("header.phone")}:{" "}
                 <a className="link-underline" href={`tel:${SITE.phoneHref}`}>
                   {SITE.phone}
                 </a>
               </div>
               <div>
-                E-Mail:{" "}
+                {t("footer.email_label")}:{" "}
                 <a className="link-underline" href={`mailto:${SITE.email}`}>
                   {SITE.email}
                 </a>
@@ -40,12 +44,12 @@ export default function Footer() {
           </div>
 
           <div className="md:col-span-3">
-            <div className="eyebrow mb-4">Navigation</div>
+            <div className="eyebrow mb-4">{t("footer.nav")}</div>
             <ul className="space-y-2.5 text-sm text-neutral-700">
               {NAV.map((item) => (
-                <li key={item.label}>
+                <li key={item.labelKey}>
                   <Link href={item.href} className="hover:text-royal-700">
-                    {item.label}
+                    {t(item.labelKey as any)}
                   </Link>
                 </li>
               ))}
@@ -53,11 +57,11 @@ export default function Footer() {
           </div>
 
           <div className="md:col-span-4">
-            <div className="eyebrow mb-4">Mitmachen</div>
+            <div className="eyebrow mb-4">{t("footer.join")}</div>
             <ul className="space-y-2.5 text-sm text-neutral-700">
               <li>
                 <Link href="/mitgliedschaft" className="hover:text-royal-700">
-                  Mitglied werden
+                  {t("footer.become_member")}
                 </Link>
               </li>
               <li>
@@ -67,27 +71,27 @@ export default function Footer() {
                   rel="noopener"
                   className="hover:text-royal-700"
                 >
-                  Beitrittserklärung (PDF)
+                  {t("footer.declaration_pdf")}
                 </a>
               </li>
               <li>
                 <Link href="/neue-mitglieder" className="hover:text-royal-700">
-                  Neue Mitglieder
+                  {t("footer.new_members")}
                 </Link>
               </li>
               <li>
                 <Link href="/nachruf" className="hover:text-royal-700">
-                  Nachruf
+                  {t("footer.obituary")}
                 </Link>
               </li>
               <li>
                 <Link href="/partner" className="hover:text-royal-700">
-                  Partner und Förderer
+                  {t("footer.partners")}
                 </Link>
               </li>
               <li>
                 <Link href="/suche" className="hover:text-royal-700">
-                  Suche
+                  {t("footer.search")}
                 </Link>
               </li>
             </ul>
@@ -100,17 +104,17 @@ export default function Footer() {
 
         <div className="flex flex-col items-start justify-between gap-3 text-xs text-neutral-500 sm:flex-row sm:items-center">
           <div>
-            © {new Date().getFullYear()} Förderverein Klingende Kirche Saarlouis e.V.
+            © {new Date().getFullYear()} {l(SITE.nameLong, lang)}
           </div>
           <div className="flex items-center gap-5">
             <Link href="/impressum" className="hover:text-royal-700">
-              Impressum
+              {t("footer.imprint")}
             </Link>
             <Link href="/datenschutz" className="hover:text-royal-700">
-              Datenschutz
+              {t("footer.privacy")}
             </Link>
             <Link href="/disclaimer" className="hover:text-royal-700">
-              Disclaimer
+              {t("footer.disclaimer")}
             </Link>
           </div>
         </div>
