@@ -1,4 +1,4 @@
-import { EVENTS, NEWS, GALLERIES, PARTNERS } from "./data";
+import { EVENTS, NEWS, GALLERIES, PARTNERS, ORGEL_HISTORY } from "./data";
 
 export type SearchDoc = {
   id: string;
@@ -128,7 +128,15 @@ export function buildIndex(): SearchDoc[] {
     href: "/partner"
   }));
 
-  return [...STATIC_PAGES, ...events, ...news, ...galleries, ...partners];
+  const orgelHistory: SearchDoc[] = ORGEL_HISTORY.map((h) => ({
+    id: `orgel-${h.slug}`,
+    title: `${h.title}${h.year ? ` (${h.year})` : ""}`,
+    snippet: "Kapitel aus der Geschichte der Lisdorfer Orgeln.",
+    category: "Orgel",
+    href: `/orgel/${h.slug}`
+  }));
+
+  return [...STATIC_PAGES, ...events, ...news, ...galleries, ...partners, ...orgelHistory];
 }
 
 export function search(query: string, index: SearchDoc[]): SearchDoc[] {

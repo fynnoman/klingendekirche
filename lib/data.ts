@@ -288,12 +288,47 @@ export const BOARD: { role: string; name: string }[] = [
 ];
 
 export const ORGAN_FACTS: { label: string; value: string }[] = [
-  { label: "Orgelbauer", value: "Hugo Mayer Orgelbau" },
-  { label: "Manuale", value: "III + Pedal" },
-  { label: "Register", value: "38 (seit 2026 inkl. Gregoriusbass 32′)" },
-  { label: "Pfeifen", value: "über 2.600" },
-  { label: "Trakturen", value: "mechanisch" },
-  { label: "Weihe", value: "1993, Erweiterung 2026" }
+  { label: "Orgelbauer", value: "Hugo Mayer Orgelbau, Heusweiler / Saar" },
+  { label: "Neubau", value: "1987" },
+  { label: "Register", value: "45" },
+  { label: "Traktur", value: "mechanische Holztraktur" },
+  { label: "Orgelweihe", value: "25. Oktober 1987" },
+  {
+    label: "Prospekt-Schnitzwerk",
+    value: "Martin Mrziglod, Tholey / Saar (vollendet 1992)"
+  }
+];
+
+export type OrgelInfoItem = {
+  slug: string;
+  title: string;
+  year?: string;
+};
+
+export const ORGEL_HISTORY: OrgelInfoItem[] = [
+  { slug: "stumm-1861", title: "Die Stumm-Orgel", year: "1861" },
+  { slug: "stumm-erweiterung-1905", title: "Erweiterung der Stumm-Orgel", year: "1905" },
+  { slug: "haerpfer-1944", title: "Die Haerpfer-Orgel", year: "1944" },
+  { slug: "mayer-1987", title: "Die MAYER-Orgel", year: "1987" },
+  {
+    slug: "organisten-1987-2017",
+    title: "Organisten an der Lisdorfer MAYER-Orgel",
+    year: "1987 bis 2017"
+  },
+  {
+    slug: "organisten-2018-2025",
+    title: "Organisten an der Lisdorfer MAYER-Orgel",
+    year: "2018 bis 2025"
+  }
+];
+
+export const ORGEL_GALLERY: { caption: string }[] = [
+  { caption: "Skizze MAYER-Orgel 1987" },
+  { caption: "Intonateur Patrick Akroud" },
+  { caption: "Orgelweihe am 25.10.1987" },
+  { caption: "MAYER-Orgel erbaut 1987" },
+  { caption: "Spieltisch" },
+  { caption: "Blick zur Orgel" }
 ];
 
 export const NEW_MEMBERS_2026: string[] = [
