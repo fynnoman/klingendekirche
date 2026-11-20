@@ -130,7 +130,7 @@ export default function HomePage() {
                 <FadeIn delay={0.2}>
                   <div className="mt-10 flex flex-wrap items-center gap-4">
                     <Link
-                      href={featured.ticket ?? "/kontakt"}
+                      href={`/tickets/${featured.id}`}
                       className="btn-primary text-base px-8 py-4"
                     >
                       {t("home.book_tickets")}

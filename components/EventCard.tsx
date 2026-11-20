@@ -19,7 +19,6 @@ export default function EventCard({
   const { lang } = useLang();
   const [d, m] = formatDate(e.date, lang);
   const recommend = lang === "en" ? "Pick" : "Empfehlung";
-  const details = lang === "en" ? "Details" : "Details";
   const time = e.time ? l(e.time, lang) : null;
   const category = l(EVENT_CATEGORY_LABEL[e.category], lang);
 
@@ -63,10 +62,10 @@ export default function EventCard({
           <div className="mt-6 flex items-center justify-between border-t border-royal-700/10 pt-4 text-xs text-neutral-500">
             <span className="truncate pr-3">{l(e.venue, lang)}</span>
             <Link
-              href="/"
+              href={`/tickets/${e.id}`}
               className="shrink-0 font-semibold uppercase tracking-[0.18em] text-royal-700 transition group-hover:text-gold-600"
             >
-              {details} →
+              {lang === "en" ? "Tickets" : "Karten"} →
             </Link>
           </div>
         </div>
@@ -115,10 +114,10 @@ export default function EventCard({
         <div className="mt-3 flex items-center justify-between text-xs text-neutral-500">
           <span>{l(e.venue, lang)}</span>
           <Link
-            href="/"
+            href={`/tickets/${e.id}`}
             className="text-royal-700 opacity-80 transition group-hover:opacity-100"
           >
-            {details} →
+            {lang === "en" ? "Tickets" : "Karten"} →
           </Link>
         </div>
       </div>
