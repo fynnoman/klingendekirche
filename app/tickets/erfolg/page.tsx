@@ -1,9 +1,11 @@
 import Link from "next/link";
 import PageHero from "@/components/PageHero";
-import { getOrderBySession, getOrderByToken } from "@/lib/tickets/queries";
-import { EVENTS } from "@/lib/data";
-import { l } from "@/lib/i18n";
-import { formatEUR } from "@/lib/tickets/types";
+import {
+  getEventById,
+  getOrderBySession,
+  getOrderByToken
+} from "@/lib/tickets/queries";
+import { formatEUR, formatEventDate } from "@/lib/tickets/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Vielen Dank" };
@@ -20,7 +22,7 @@ export default async function TicketSuccessPage({
   if (!order && session_id)
     order = await getOrderBySession(session_id).catch(() => null);
 
-  const event = order ? EVENTS.find((e) => e.id === order!.event_id) : null;
+  const event = order ? await getEventById(order.event_id).catch(() => null) : null;
 
   return (
     <>
@@ -48,7 +50,7 @@ export default async function TicketSuccessPage({
                 </div>
                 {event && (
                   <h2 className="display mt-3 text-3xl text-royal-800 sm:text-4xl">
-                    {l(event.title, "de")}
+                    {event.title_de}
                   </h2>
                 )}
                 <dl className="mt-6 grid gap-px overflow-hidden rounded-2xl border border-royal-700/10 bg-royal-700/10 sm:grid-cols-2">
@@ -59,8 +61,8 @@ export default async function TicketSuccessPage({
                           Datum
                         </dt>
                         <dd className="mt-1 text-sm text-royal-800">
-                          {l(event.dateLabel, "de")}
-                          {event.time ? ` · ${l(event.time, "de")}` : ""}
+                          {formatEventDate(event.date, "de")}
+                          {event.time ? ` · ${event.time}` : ""}
                         </dd>
                       </div>
                       <div className="bg-white px-5 py-4">
@@ -68,7 +70,7 @@ export default async function TicketSuccessPage({
                           Ort
                         </dt>
                         <dd className="mt-1 text-sm text-royal-800">
-                          {l(event.venue, "de")}
+                          {event.venue_de}
                         </dd>
                       </div>
                     </>
@@ -77,9 +79,7 @@ export default async function TicketSuccessPage({
                     <dt className="text-[10px] uppercase tracking-wider text-gold-600">
                       Karten
                     </dt>
-                    <dd className="mt-1 text-sm text-royal-800">
-                      {order.quantity}
-                    </dd>
+                    <dd className="mt-1 text-sm text-royal-800">{order.quantity}</dd>
                   </div>
                   <div className="bg-white px-5 py-4">
                     <dt className="text-[10px] uppercase tracking-wider text-gold-600">

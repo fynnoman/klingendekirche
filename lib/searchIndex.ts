@@ -1,4 +1,4 @@
-import { EVENTS, NEWS, GALLERIES, PARTNERS, ORGEL_HISTORY, EVENT_CATEGORY_LABEL } from "./data";
+import { NEWS, GALLERIES, PARTNERS, ORGEL_HISTORY } from "./data";
 import { l, type Lang } from "./i18n";
 
 export type SearchDoc = {
@@ -155,16 +155,6 @@ export function buildIndex(lang: Lang): SearchDoc[] {
     href: p.href
   }));
 
-  const events: SearchDoc[] = EVENTS.map((e) => ({
-    id: `event-${e.id}`,
-    title: l(e.title, lang),
-    snippet:
-      `${l(e.dateLabel, lang)}${e.time ? " · " + l(e.time, lang) : ""}` +
-      (e.subtitle ? ` · ${l(e.subtitle, lang)}` : ""),
-    category: `${lang === "en" ? "Event" : "Termin"} · ${l(EVENT_CATEGORY_LABEL[e.category], lang)}`,
-    href: `/termine#${e.id}`
-  }));
-
   const news: SearchDoc[] = NEWS.map((n) => ({
     id: `news-${n.id}`,
     title: l(n.title, lang),
@@ -204,7 +194,7 @@ export function buildIndex(lang: Lang): SearchDoc[] {
     href: `/orgel/${h.slug}`
   }));
 
-  return [...pages, ...events, ...news, ...galleries, ...partners, ...orgelHistory];
+  return [...pages, ...news, ...galleries, ...partners, ...orgelHistory];
 }
 
 export function search(query: string, index: SearchDoc[]): SearchDoc[] {

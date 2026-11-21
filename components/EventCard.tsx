@@ -1,12 +1,19 @@
 "use client";
 import Link from "next/link";
-import type { EventItem } from "@/lib/data";
-import { EVENT_CATEGORY_LABEL } from "@/lib/data";
+import type { EventRow } from "@/lib/tickets/types";
+import { eventText, formatEUR } from "@/lib/tickets/types";
 import { useLang } from "./LanguageProvider";
-import { l } from "@/lib/i18n";
+
+const CATEGORY_EN: Record<string, string> = {
+  Konzert: "Concert",
+  Orgel: "Organ",
+  Vortrag: "Lecture",
+  Chor: "Choir",
+  Besonderes: "Special"
+};
 
 type Props = {
-  e: EventItem;
+  e: EventRow;
   compact?: boolean;
   layout?: "horizontal" | "vertical";
 };
@@ -19,8 +26,20 @@ export default function EventCard({
   const { lang } = useLang();
   const [d, m] = formatDate(e.date, lang);
   const recommend = lang === "en" ? "Pick" : "Empfehlung";
-  const time = e.time ? l(e.time, lang) : null;
-  const category = l(EVENT_CATEGORY_LABEL[e.category], lang);
+  const linkLabel = lang === "en" ? "Tickets" : "Karten";
+  const category =
+    lang === "en" ? (CATEGORY_EN[e.category] ?? e.category) : e.category;
+  const title = eventText(e.title_de, e.title_en, lang);
+  const subtitle = e.subtitle_de
+    ? eventText(e.subtitle_de, e.subtitle_en, lang)
+    : null;
+  const description = e.description_de
+    ? eventText(e.description_de, e.description_en, lang)
+    : null;
+  const venue = eventText(e.venue_de, e.venue_en, lang);
+  const time = e.time;
+  const priceLabel =
+    e.price_cents > 0 ? formatEUR(e.price_cents, lang) : null;
 
   if (layout === "vertical") {
     return (
@@ -48,24 +67,22 @@ export default function EventCard({
         </div>
 
         <div className="flex flex-1 flex-col p-7">
-          <h3 className="display text-2xl leading-tight text-royal-800">
-            {l(e.title, lang)}
-          </h3>
-          {e.subtitle && (
-            <p className="mt-2 text-[15px] italic text-neutral-600">
-              {l(e.subtitle, lang)}
+          <h3 className="display text-2xl leading-tight text-royal-800">{title}</h3>
+          {subtitle && (
+            <p className="mt-2 text-[15px] italic text-neutral-600">{subtitle}</p>
+          )}
+          {description && (
+            <p className="mt-4 flex-1 text-sm leading-relaxed text-neutral-700">
+              {description}
             </p>
           )}
-          <p className="mt-4 flex-1 text-sm leading-relaxed text-neutral-700">
-            {l(e.description, lang)}
-          </p>
           <div className="mt-6 flex items-center justify-between border-t border-royal-700/10 pt-4 text-xs text-neutral-500">
-            <span className="truncate pr-3">{l(e.venue, lang)}</span>
+            <span className="truncate pr-3">{venue}</span>
             <Link
               href={`/tickets/${e.id}`}
               className="shrink-0 font-semibold uppercase tracking-[0.18em] text-royal-700 transition group-hover:text-gold-600"
             >
-              {lang === "en" ? "Tickets" : "Karten"} →
+              {linkLabel} →
             </Link>
           </div>
         </div>
@@ -80,9 +97,7 @@ export default function EventCard({
       } rounded-2xl border border-royal-700/10 bg-white p-5 shadow-card transition hover:border-royal-700/25 hover:shadow-plate`}
     >
       <div className="flex w-16 flex-none flex-col items-center justify-center rounded-xl bg-royal-800 py-3 text-center text-cream-50 sm:w-20">
-        <div className="text-[10px] uppercase tracking-[0.18em] text-gold-200">
-          {m}
-        </div>
+        <div className="text-[10px] uppercase tracking-[0.18em] text-gold-200">{m}</div>
         <div className="headline text-3xl font-medium leading-none text-cream-50 sm:text-4xl">
           {d}
         </div>
@@ -92,6 +107,9 @@ export default function EventCard({
         <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em]">
           <span className="text-gold-600">{category}</span>
           {time && <span className="text-neutral-500">· {time}</span>}
+          {priceLabel && (
+            <span className="text-neutral-500">· {priceLabel}</span>
+          )}
           {e.highlight && (
             <span className="rounded-full border border-gold-300 bg-gold-50 px-2 py-0.5 text-[10px] font-semibold text-gold-700">
               {recommend}
@@ -99,25 +117,23 @@ export default function EventCard({
           )}
         </div>
         <h3 className="headline mt-1.5 text-xl font-medium leading-snug text-royal-800 sm:text-2xl">
-          {l(e.title, lang)}
+          {title}
         </h3>
-        {e.subtitle && (
-          <p className="mt-1 text-sm italic text-neutral-600">
-            {l(e.subtitle, lang)}
-          </p>
+        {subtitle && (
+          <p className="mt-1 text-sm italic text-neutral-600">{subtitle}</p>
         )}
-        {!compact && (
+        {!compact && description && (
           <p className="mt-3 line-clamp-2 text-sm leading-relaxed text-neutral-700">
-            {l(e.description, lang)}
+            {description}
           </p>
         )}
         <div className="mt-3 flex items-center justify-between text-xs text-neutral-500">
-          <span>{l(e.venue, lang)}</span>
+          <span>{venue}</span>
           <Link
             href={`/tickets/${e.id}`}
             className="text-royal-700 opacity-80 transition group-hover:opacity-100"
           >
-            {lang === "en" ? "Tickets" : "Karten"} →
+            {linkLabel} →
           </Link>
         </div>
       </div>
@@ -126,36 +142,10 @@ export default function EventCard({
 }
 
 function formatDate(iso: string, lang: "de" | "en"): [string, string] {
-  const d = new Date(iso);
-  const day = d.getDate().toString().padStart(2, "0");
-  const monthsDe = [
-    "Jan",
-    "Feb",
-    "Mär",
-    "Apr",
-    "Mai",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Okt",
-    "Nov",
-    "Dez"
-  ];
-  const monthsEn = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec"
-  ];
+  const d = new Date(iso + "T00:00:00Z");
+  const day = d.getUTCDate().toString().padStart(2, "0");
+  const monthsDe = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+  const monthsEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const months = lang === "en" ? monthsEn : monthsDe;
-  return [day, months[d.getMonth()]];
+  return [day, months[d.getUTCMonth()]];
 }

@@ -1,10 +1,8 @@
 import { notFound } from "next/navigation";
 import PageHero from "@/components/PageHero";
 import OrderCancelButton from "./OrderCancelButton";
-import { getOrderByToken } from "@/lib/tickets/queries";
-import { EVENTS } from "@/lib/data";
-import { l } from "@/lib/i18n";
-import { formatEUR } from "@/lib/tickets/types";
+import { getEventById, getOrderByToken } from "@/lib/tickets/queries";
+import { formatEUR, formatEventDate } from "@/lib/tickets/types";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Ihre Bestellung" };
@@ -27,7 +25,7 @@ export default async function OrderPortalPage({
   const order = await getOrderByToken(token).catch(() => null);
   if (!order) notFound();
 
-  const event = EVENTS.find((e) => e.id === order.event_id);
+  const event = await getEventById(order.event_id).catch(() => null);
   const canCancel = order.status === "paid" || order.status === "pending";
   const isActive = order.status === "paid" || order.status === "pending";
 
@@ -68,7 +66,7 @@ export default async function OrderPortalPage({
 
             {event && (
               <h2 className="display mt-6 text-3xl text-royal-800 sm:text-4xl">
-                {l(event.title, "de")}
+                {event.title_de}
               </h2>
             )}
 
@@ -80,17 +78,15 @@ export default async function OrderPortalPage({
                       Datum
                     </dt>
                     <dd className="mt-1 text-sm text-royal-800">
-                      {l(event.dateLabel, "de")}
-                      {event.time ? ` · ${l(event.time, "de")}` : ""}
+                      {formatEventDate(event.date, "de")}
+                      {event.time ? ` · ${event.time}` : ""}
                     </dd>
                   </div>
                   <div className="bg-white px-5 py-4">
                     <dt className="text-[10px] uppercase tracking-wider text-gold-600">
                       Ort
                     </dt>
-                    <dd className="mt-1 text-sm text-royal-800">
-                      {l(event.venue, "de")}
-                    </dd>
+                    <dd className="mt-1 text-sm text-royal-800">{event.venue_de}</dd>
                   </div>
                 </>
               )}
