@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { stripe } from "@/lib/stripe";
-import { EVENTS } from "@/lib/data";
-import { l } from "@/lib/i18n";
 import {
-  getTicketEvent,
+  getEventById,
   insertOrder,
   reserveSeats,
   releaseSeats
@@ -36,60 +34,68 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "invalid_fields" }, { status: 400 });
   }
 
-  const event = EVENTS.find((e) => e.id === eventId);
-  if (!event) {
-    return NextResponse.json({ ok: false, error: "event_not_found" }, { status: 404 });
-  }
-
-  let ticketEvent;
+  let event;
   try {
-    ticketEvent = await getTicketEvent(eventId);
+    event = await getEventById(eventId);
   } catch (err) {
     console.error("[checkout] db error", err);
     return NextResponse.json({ ok: false, error: "db_error" }, { status: 500 });
   }
 
-  if (!ticketEvent || !ticketEvent.active) {
+  if (!event || event.archived) {
+    return NextResponse.json({ ok: false, error: "event_not_found" }, { status: 404 });
+  }
+
+  if (!event.sale_active || event.price_cents <= 0 || event.capacity <= 0) {
     return NextResponse.json(
       { ok: false, error: "sales_closed" },
       { status: 409 }
     );
   }
 
-  // Reserve seats atomically; if not enough, bail out.
+  // Atomar Plätze reservieren
   const reservation = await reserveSeats(eventId, quantity);
   if (!reservation) {
     return NextResponse.json(
-      { ok: false, error: "sold_out", availableSeats: ticketEvent.capacity - ticketEvent.seats_sold },
+      {
+        ok: false,
+        error: "sold_out",
+        availableSeats: event.capacity - event.seats_sold
+      },
       { status: 409 }
     );
   }
 
-  const amountCents = ticketEvent.price_cents * quantity;
+  const amountCents = event.price_cents * quantity;
   const orderId = `KK-${Date.now().toString(36).toUpperCase()}-${nanoid(5).toUpperCase()}`;
   const token = nanoid(32);
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ?? req.headers.get("origin") ?? "";
 
   try {
+    // Wenn Stripe-Price bereits in Stripe hinterlegt ist (durch Admin-Sync),
+    // nutze die existierende Price – saubere Berichte. Fallback: price_data.
+    const line_items: Array<Record<string, unknown>> = event.stripe_price_id
+      ? [{ price: event.stripe_price_id, quantity }]
+      : [
+          {
+            quantity,
+            price_data: {
+              currency: "eur",
+              unit_amount: event.price_cents,
+              product_data: {
+                name: `Konzertkarte: ${event.title_de}`,
+                description:
+                  `${event.date}${event.time ? " · " + event.time : ""}`
+              }
+            }
+          }
+        ];
+
     const session = await stripe().checkout.sessions.create({
       mode: "payment",
       customer_email: buyerEmail,
-      line_items: [
-        {
-          quantity,
-          price_data: {
-            currency: "eur",
-            unit_amount: ticketEvent.price_cents,
-            product_data: {
-              name: `Konzertkarte: ${l(event.title, "de")}`,
-              description: `${l(event.dateLabel, "de")}${
-                event.time ? " · " + l(event.time, "de") : ""
-              }`
-            }
-          }
-        }
-      ],
+      line_items: line_items as never,
       metadata: {
         order_id: orderId,
         event_id: eventId,
@@ -105,7 +111,7 @@ export async function POST(req: Request) {
       },
       success_url: `${siteUrl}/tickets/erfolg?session_id={CHECKOUT_SESSION_ID}&token=${token}`,
       cancel_url: `${siteUrl}/tickets/${eventId}?cancelled=1`,
-      expires_at: Math.floor(Date.now() / 1000) + 60 * 30 // 30 min
+      expires_at: Math.floor(Date.now() / 1000) + 60 * 30
     });
 
     await insertOrder({
@@ -128,7 +134,6 @@ export async function POST(req: Request) {
       token
     });
   } catch (err) {
-    // Roll back the seat reservation if Stripe failed.
     await releaseSeats(eventId, quantity).catch(() => undefined);
     console.error("[checkout] stripe error", err);
     const msg = err instanceof Error ? err.message : String(err);

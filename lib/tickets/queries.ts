@@ -1,64 +1,148 @@
 import { sql } from "@/lib/db/client";
-import type { OrderRow, OrderStatus, TicketEventRow } from "./types";
+import type {
+  EventInput,
+  EventRow,
+  OrderRow,
+  OrderStatus
+} from "./types";
 
 type Row = Record<string, unknown>;
 
-export async function getAllTicketEvents(): Promise<TicketEventRow[]> {
-  const q = sql();
-  const rows = (await q`SELECT * FROM ticket_events ORDER BY event_id`) as Row[];
-  return rows as unknown as TicketEventRow[];
-}
+// ---------------------------------------------------------------------------
+// events
+// ---------------------------------------------------------------------------
 
-export async function getTicketEvent(
-  eventId: string
-): Promise<TicketEventRow | null> {
+export async function listAllEvents(): Promise<EventRow[]> {
   const q = sql();
-  const rows = (await q`SELECT * FROM ticket_events WHERE event_id = ${eventId} LIMIT 1`) as Row[];
-  return (rows[0] as unknown as TicketEventRow) ?? null;
-}
-
-export async function upsertTicketEvent(input: {
-  eventId: string;
-  priceCents: number;
-  capacity: number;
-  active?: boolean;
-}): Promise<void> {
-  const q = sql();
-  const active = input.active ?? true;
-  await q`
-    INSERT INTO ticket_events (event_id, price_cents, capacity, active, updated_at)
-    VALUES (${input.eventId}, ${input.priceCents}, ${input.capacity}, ${active}, NOW())
-    ON CONFLICT (event_id) DO UPDATE SET
-      price_cents = EXCLUDED.price_cents,
-      capacity = EXCLUDED.capacity,
-      active = EXCLUDED.active,
-      updated_at = NOW()
-  `;
-}
-
-export async function setEventActive(eventId: string, active: boolean) {
-  const q = sql();
-  await q`UPDATE ticket_events SET active = ${active}, updated_at = NOW() WHERE event_id = ${eventId}`;
+  const rows = (await q`SELECT * FROM events ORDER BY date ASC`) as Row[];
+  return rows as unknown as EventRow[];
 }
 
 /**
- * Atomically reserves N seats for an event. Returns the updated event row or
- * null if not enough seats are available.
+ * Für die öffentliche Website: alle Konzerte ab heute, nicht archiviert.
+ * Sortiert nach Datum aufsteigend.
+ */
+export async function listUpcomingEvents(): Promise<EventRow[]> {
+  const q = sql();
+  const rows = (await q`
+    SELECT * FROM events
+    WHERE archived = FALSE
+      AND date >= CURRENT_DATE
+    ORDER BY date ASC, time ASC NULLS LAST
+  `) as Row[];
+  return rows as unknown as EventRow[];
+}
+
+/** Das nächste Konzert für den Hero. Highlight hat Vorrang. */
+export async function getNextFeaturedEvent(): Promise<EventRow | null> {
+  const q = sql();
+  const rows = (await q`
+    SELECT * FROM events
+    WHERE archived = FALSE
+      AND date >= CURRENT_DATE
+    ORDER BY highlight DESC, date ASC
+    LIMIT 1
+  `) as Row[];
+  return (rows[0] as unknown as EventRow) ?? null;
+}
+
+export async function getEventById(id: string): Promise<EventRow | null> {
+  const q = sql();
+  const rows = (await q`SELECT * FROM events WHERE id = ${id} LIMIT 1`) as Row[];
+  return (rows[0] as unknown as EventRow) ?? null;
+}
+
+export async function insertEvent(id: string, input: EventInput): Promise<EventRow> {
+  const q = sql();
+  const rows = (await q`
+    INSERT INTO events (
+      id, title_de, title_en, subtitle_de, subtitle_en,
+      date, time, venue_de, venue_en, description_de, description_en,
+      category, image_url, price_cents, capacity, sale_active, highlight,
+      archived, created_at, updated_at
+    ) VALUES (
+      ${id}, ${input.title_de}, ${input.title_en ?? null},
+      ${input.subtitle_de ?? null}, ${input.subtitle_en ?? null},
+      ${input.date}, ${input.time ?? null},
+      ${input.venue_de}, ${input.venue_en ?? null},
+      ${input.description_de}, ${input.description_en ?? null},
+      ${input.category}, ${input.image_url ?? null},
+      ${input.price_cents}, ${input.capacity},
+      ${input.sale_active}, ${input.highlight},
+      ${input.archived ?? false}, NOW(), NOW()
+    )
+    RETURNING *
+  `) as Row[];
+  return rows[0] as unknown as EventRow;
+}
+
+export async function updateEvent(id: string, input: EventInput): Promise<EventRow | null> {
+  const q = sql();
+  const rows = (await q`
+    UPDATE events SET
+      title_de = ${input.title_de},
+      title_en = ${input.title_en ?? null},
+      subtitle_de = ${input.subtitle_de ?? null},
+      subtitle_en = ${input.subtitle_en ?? null},
+      date = ${input.date},
+      time = ${input.time ?? null},
+      venue_de = ${input.venue_de},
+      venue_en = ${input.venue_en ?? null},
+      description_de = ${input.description_de},
+      description_en = ${input.description_en ?? null},
+      category = ${input.category},
+      image_url = ${input.image_url ?? null},
+      price_cents = ${input.price_cents},
+      capacity = ${input.capacity},
+      sale_active = ${input.sale_active},
+      highlight = ${input.highlight},
+      archived = ${input.archived ?? false},
+      updated_at = NOW()
+    WHERE id = ${id}
+    RETURNING *
+  `) as Row[];
+  return (rows[0] as unknown as EventRow) ?? null;
+}
+
+export async function setEventStripeIds(
+  id: string,
+  productId: string | null,
+  priceId: string | null
+): Promise<void> {
+  const q = sql();
+  await q`
+    UPDATE events
+    SET stripe_product_id = ${productId},
+        stripe_price_id = ${priceId},
+        updated_at = NOW()
+    WHERE id = ${id}
+  `;
+}
+
+export async function setEventArchived(id: string, archived: boolean): Promise<void> {
+  const q = sql();
+  await q`UPDATE events SET archived = ${archived}, updated_at = NOW() WHERE id = ${id}`;
+}
+
+/**
+ * Atomar N Plätze reservieren. Gibt null zurück, wenn nicht genug Plätze
+ * verfügbar sind oder der Verkauf inaktiv ist.
  */
 export async function reserveSeats(
   eventId: string,
   quantity: number
-): Promise<TicketEventRow | null> {
+): Promise<EventRow | null> {
   const q = sql();
   const rows = (await q`
-    UPDATE ticket_events
+    UPDATE events
     SET seats_sold = seats_sold + ${quantity}, updated_at = NOW()
-    WHERE event_id = ${eventId}
-      AND active = TRUE
+    WHERE id = ${eventId}
+      AND archived = FALSE
+      AND sale_active = TRUE
       AND seats_sold + ${quantity} <= capacity
     RETURNING *
   `) as Row[];
-  return (rows[0] as unknown as TicketEventRow) ?? null;
+  return (rows[0] as unknown as EventRow) ?? null;
 }
 
 export async function releaseSeats(
@@ -67,11 +151,15 @@ export async function releaseSeats(
 ): Promise<void> {
   const q = sql();
   await q`
-    UPDATE ticket_events
+    UPDATE events
     SET seats_sold = GREATEST(seats_sold - ${quantity}, 0), updated_at = NOW()
-    WHERE event_id = ${eventId}
+    WHERE id = ${eventId}
   `;
 }
+
+// ---------------------------------------------------------------------------
+// orders
+// ---------------------------------------------------------------------------
 
 export async function insertOrder(order: {
   id: string;

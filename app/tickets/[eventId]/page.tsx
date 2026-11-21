@@ -1,10 +1,8 @@
 import { notFound } from "next/navigation";
 import PageHero from "@/components/PageHero";
 import TicketBuyForm from "./TicketBuyForm";
-import { EVENTS } from "@/lib/data";
-import { getTicketEvent } from "@/lib/tickets/queries";
-import { l } from "@/lib/i18n";
-import { formatEUR } from "@/lib/tickets/types";
+import { getEventById } from "@/lib/tickets/queries";
+import { formatEUR, formatEventDate } from "@/lib/tickets/types";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +12,9 @@ export async function generateMetadata({
   params: Promise<{ eventId: string }>;
 }) {
   const { eventId } = await params;
-  const event = EVENTS.find((e) => e.id === eventId);
+  const event = await getEventById(eventId).catch(() => null);
   if (!event) return { title: "Konzertkarten" };
-  return { title: `Karten · ${l(event.title, "de")}` };
+  return { title: `Karten · ${event.title_de}` };
 }
 
 export default async function TicketBuyPage({
@@ -25,30 +23,29 @@ export default async function TicketBuyPage({
   params: Promise<{ eventId: string }>;
 }) {
   const { eventId } = await params;
-  const event = EVENTS.find((e) => e.id === eventId);
-  if (!event) notFound();
 
-  let ticketEvent;
-  let error: string | null = null;
+  let event;
+  let dbError: string | null = null;
   try {
-    ticketEvent = await getTicketEvent(eventId);
+    event = await getEventById(eventId);
   } catch (err) {
-    error = "db_not_ready";
-    console.error("[ticket page] db error", err);
+    dbError = err instanceof Error ? err.message : String(err);
   }
 
+  if (!event && !dbError) notFound();
+
+  const saleOpen =
+    !!event && !event.archived && event.sale_active && event.price_cents > 0 && event.capacity > 0;
   const soldOut =
-    ticketEvent !== null &&
-    ticketEvent !== undefined &&
-    ticketEvent.seats_sold >= ticketEvent.capacity;
-  const available = ticketEvent ? ticketEvent.capacity - ticketEvent.seats_sold : 0;
+    !!event && event.capacity > 0 && event.seats_sold >= event.capacity;
+  const available = event ? event.capacity - event.seats_sold : 0;
 
   return (
     <>
       <PageHero
-        eyebrow={l(event.dateLabel, "de")}
-        title={l(event.title, "de")}
-        subtitle={event.subtitle ? l(event.subtitle, "de") : undefined}
+        eyebrow={event ? formatEventDate(event.date, "de") : "Konzertkarten"}
+        title={event ? event.title_de : "Konzertkarten"}
+        subtitle={event?.subtitle_de ?? undefined}
       />
 
       <section className="py-14">
@@ -56,9 +53,9 @@ export default async function TicketBuyPage({
           <div className="grid gap-10 md:grid-cols-5">
             <div className="md:col-span-3">
               <div className="rounded-3xl border border-royal-700/10 bg-white p-8 shadow-plate sm:p-10">
-                {error ? (
+                {dbError ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-[14px] text-amber-900">
-                    Der Ticket-Verkauf ist aktuell nicht konfiguriert. Bitte melden
+                    Der Ticket-Verkauf ist aktuell nicht erreichbar. Bitte melden
                     Sie sich direkt unter{" "}
                     <a
                       href="mailto:info@klingende-kirche.de"
@@ -67,15 +64,10 @@ export default async function TicketBuyPage({
                       info@klingende-kirche.de
                     </a>
                     .
-                    <div className="mt-2 text-[11px] uppercase tracking-wider text-amber-700">
-                      Admin: DATABASE_URL in der Umgebung setzen und schema.sql
-                      ausführen.
-                    </div>
                   </div>
-                ) : !ticketEvent ? (
+                ) : !event ? null : !saleOpen ? (
                   <div className="rounded-xl border border-royal-700/10 bg-cream-100/60 p-5 text-[14px] text-royal-800">
-                    Für dieses Konzert ist der Ticketverkauf noch nicht freigegeben.
-                    <br />
+                    Für dieses Konzert ist derzeit kein Online-Verkauf aktiv.
                     Karten an der Abendkasse oder per Mail unter{" "}
                     <a
                       href="mailto:info@klingende-kirche.de"
@@ -85,19 +77,14 @@ export default async function TicketBuyPage({
                     </a>
                     .
                   </div>
-                ) : !ticketEvent.active ? (
-                  <div className="rounded-xl border border-royal-700/10 bg-cream-100/60 p-5 text-[14px] text-royal-800">
-                    Der Online-Verkauf für dieses Konzert ist derzeit deaktiviert.
-                    Karten erhalten Sie an der Abendkasse.
-                  </div>
                 ) : soldOut ? (
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 text-[14px] text-amber-900">
                     Dieses Konzert ist ausverkauft.
                   </div>
                 ) : (
                   <TicketBuyForm
-                    eventId={eventId}
-                    priceCents={ticketEvent.price_cents}
+                    eventId={event.id}
+                    priceCents={event.price_cents}
                     availableSeats={available}
                   />
                 )}
@@ -110,54 +97,58 @@ export default async function TicketBuyPage({
               </p>
             </div>
 
-            <aside className="md:col-span-2">
-              <div className="rounded-3xl border border-royal-700/10 bg-cream-100/60 p-7">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gold-600">
-                  Konzertdaten
-                </div>
-                <dl className="mt-4 space-y-3 text-sm">
-                  <div>
-                    <dt className="text-[11px] uppercase tracking-wider text-neutral-500">
-                      Datum
-                    </dt>
-                    <dd className="text-royal-800">
-                      {l(event.dateLabel, "de")}
-                      {event.time ? ` · ${l(event.time, "de")}` : ""}
-                    </dd>
+            {event && (
+              <aside className="md:col-span-2">
+                <div className="rounded-3xl border border-royal-700/10 bg-cream-100/60 p-7">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-gold-600">
+                    Konzertdaten
                   </div>
-                  <div>
-                    <dt className="text-[11px] uppercase tracking-wider text-neutral-500">
-                      Ort
-                    </dt>
-                    <dd className="text-royal-800">{l(event.venue, "de")}</dd>
-                  </div>
-                  {ticketEvent && ticketEvent.active && !soldOut && (
-                    <>
-                      <div>
-                        <dt className="text-[11px] uppercase tracking-wider text-neutral-500">
-                          Preis pro Karte
-                        </dt>
-                        <dd className="text-royal-800">
-                          {formatEUR(ticketEvent.price_cents, "de")}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-[11px] uppercase tracking-wider text-neutral-500">
-                          Verfügbar
-                        </dt>
-                        <dd className="text-royal-800">
-                          {available} von {ticketEvent.capacity} Plätzen
-                        </dd>
-                      </div>
-                    </>
-                  )}
-                </dl>
+                  <dl className="mt-4 space-y-3 text-sm">
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wider text-neutral-500">
+                        Datum
+                      </dt>
+                      <dd className="text-royal-800">
+                        {formatEventDate(event.date, "de")}
+                        {event.time ? ` · ${event.time}` : ""}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-[11px] uppercase tracking-wider text-neutral-500">
+                        Ort
+                      </dt>
+                      <dd className="text-royal-800">{event.venue_de}</dd>
+                    </div>
+                    {saleOpen && !soldOut && (
+                      <>
+                        <div>
+                          <dt className="text-[11px] uppercase tracking-wider text-neutral-500">
+                            Preis pro Karte
+                          </dt>
+                          <dd className="text-royal-800">
+                            {formatEUR(event.price_cents, "de")}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-[11px] uppercase tracking-wider text-neutral-500">
+                            Verfügbar
+                          </dt>
+                          <dd className="text-royal-800">
+                            {available} von {event.capacity} Plätzen
+                          </dd>
+                        </div>
+                      </>
+                    )}
+                  </dl>
 
-                <p className="mt-6 text-[13px] leading-relaxed text-neutral-700">
-                  {l(event.description, "de")}
-                </p>
-              </div>
-            </aside>
+                  {event.description_de && (
+                    <p className="mt-6 text-[13px] leading-relaxed text-neutral-700">
+                      {event.description_de}
+                    </p>
+                  )}
+                </div>
+              </aside>
+            )}
           </div>
         </div>
       </section>

@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import {
+  getEventById,
   getOrderByToken,
   markOrderCancelled,
   releaseSeats
 } from "@/lib/tickets/queries";
 import { sendCancellationMail } from "@/lib/tickets/mail";
-import { EVENTS } from "@/lib/data";
-import { l } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,7 +29,6 @@ export async function POST(
     return NextResponse.json({ ok: true, alreadyCancelled: true, order });
   }
 
-  // If paid, trigger a Stripe refund. Otherwise just cancel locally.
   let refundId: string | null = null;
   if (order.status === "paid") {
     const piId = order.stripe_payment_intent_id;
@@ -66,13 +64,13 @@ export async function POST(
 
   if (updated) {
     await releaseSeats(updated.event_id, updated.quantity).catch(() => undefined);
-    const e = EVENTS.find((x) => x.id === updated.event_id);
+    const e = await getEventById(updated.event_id).catch(() => null);
     if (e) {
       await sendCancellationMail(updated, {
-        title: l(e.title, "de"),
-        dateLabel: l(e.dateLabel, "de"),
-        time: e.time ? l(e.time, "de") : null,
-        venue: l(e.venue, "de")
+        title: e.title_de,
+        dateLabel: e.date,
+        time: e.time,
+        venue: e.venue_de
       }).catch((err) => console.error("[cancel] mail failed", err));
     }
   }

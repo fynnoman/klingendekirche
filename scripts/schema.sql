@@ -1,16 +1,44 @@
 -- Klingende Kirche: Ticket-System Schema
 -- Einmalig gegen die Neon-DB laufen lassen:
---   psql "$DATABASE_URL" -f scripts/schema.sql
+--   node --env-file=.env.local scripts/apply-schema.mjs
 
-CREATE TABLE IF NOT EXISTS ticket_events (
-  event_id TEXT PRIMARY KEY,
-  price_cents INTEGER NOT NULL,
-  capacity INTEGER NOT NULL,
-  seats_sold INTEGER NOT NULL DEFAULT 0,
-  active BOOLEAN NOT NULL DEFAULT TRUE,
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+-- ---------------------------------------------------------------------------
+-- events: alle Konzerte, Vespern, Vorträge – vollständig admin-pflegbar
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS events (
+  id              TEXT PRIMARY KEY,
+  title_de        TEXT NOT NULL,
+  title_en        TEXT,
+  subtitle_de     TEXT,
+  subtitle_en     TEXT,
+  date            DATE NOT NULL,
+  time            TEXT,
+  venue_de        TEXT NOT NULL,
+  venue_en        TEXT,
+  description_de  TEXT NOT NULL DEFAULT '',
+  description_en  TEXT,
+  category        TEXT NOT NULL DEFAULT 'Konzert'
+                    CHECK (category IN ('Konzert','Orgel','Vortrag','Chor','Besonderes')),
+  image_url       TEXT,
+  price_cents     INTEGER NOT NULL DEFAULT 0,
+  capacity        INTEGER NOT NULL DEFAULT 0,
+  seats_sold      INTEGER NOT NULL DEFAULT 0,
+  sale_active     BOOLEAN NOT NULL DEFAULT FALSE,
+  highlight       BOOLEAN NOT NULL DEFAULT FALSE,
+  archived        BOOLEAN NOT NULL DEFAULT FALSE,
+  stripe_product_id TEXT,
+  stripe_price_id   TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX IF NOT EXISTS idx_events_date ON events(date);
+CREATE INDEX IF NOT EXISTS idx_events_archived ON events(archived);
+CREATE INDEX IF NOT EXISTS idx_events_sale_active ON events(sale_active);
+
+-- ---------------------------------------------------------------------------
+-- orders: eine Zeile pro Ticket-Bestellung
+-- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS orders (
   id TEXT PRIMARY KEY,
   token TEXT NOT NULL UNIQUE,

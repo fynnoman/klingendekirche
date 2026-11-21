@@ -4,26 +4,25 @@ import { stripe, STRIPE_WEBHOOK_SECRET } from "@/lib/stripe";
 import {
   getOrderBySession,
   getOrderById,
+  getEventById,
   markOrderExpired,
   markOrderPaid,
   markOrderCancelled,
   releaseSeats
 } from "@/lib/tickets/queries";
 import { sendTicketConfirmation } from "@/lib/tickets/mail";
-import { EVENTS } from "@/lib/data";
-import { l } from "@/lib/i18n";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function eventMetaFor(eventId: string) {
-  const e = EVENTS.find((x) => x.id === eventId);
+async function eventMetaFor(eventId: string) {
+  const e = await getEventById(eventId).catch(() => null);
   if (!e) return null;
   return {
-    title: l(e.title, "de"),
-    dateLabel: l(e.dateLabel, "de"),
-    time: e.time ? l(e.time, "de") : null,
-    venue: l(e.venue, "de")
+    title: e.title_de,
+    dateLabel: e.date,
+    time: e.time,
+    venue: e.venue_de
   };
 }
 
@@ -77,7 +76,7 @@ export async function POST(req: Request) {
         });
 
         if (updated) {
-          const meta = eventMetaFor(updated.event_id);
+          const meta = await eventMetaFor(updated.event_id);
           if (meta) {
             await sendTicketConfirmation(updated, meta).catch((err) =>
               console.error("[webhook] mail failed", err)
@@ -117,7 +116,6 @@ export async function POST(req: Request) {
       }
 
       default:
-        // Ignore other event types.
         break;
     }
   } catch (err) {
