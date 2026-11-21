@@ -1,8 +1,12 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { EventRow, OrderRow } from "@/lib/tickets/types";
 import { formatEUR } from "@/lib/tickets/types";
+import EventEditor from "./EventEditor";
+
+type Tab = "konzerte" | "bestellungen";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Offen",
@@ -40,6 +44,9 @@ export default function AdminDashboard({
   orders: OrderRow[];
 }) {
   const router = useRouter();
+  const [tab, setTab] = useState<Tab>("konzerte");
+  const [editing, setEditing] = useState<EventRow | "new" | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   async function logout() {
     await fetch("/api/admin/logout", { method: "POST" });
@@ -47,27 +54,93 @@ export default function AdminDashboard({
     router.refresh();
   }
 
+  async function archiveEvent(id: string) {
+    if (!confirm("Konzert archivieren? Es verschwindet aus der öffentlichen Übersicht."))
+      return;
+    const res = await fetch(`/api/admin/events?id=${encodeURIComponent(id)}`, {
+      method: "DELETE"
+    });
+    if (!res.ok) {
+      alert("Archivieren fehlgeschlagen.");
+      return;
+    }
+    startTransition(() => router.refresh());
+  }
+
   async function refundOrder(orderId: string) {
-    if (!confirm("Diese Bestellung stornieren bzw. bei bezahlten Bestellungen erstatten?")) return;
+    if (!confirm("Bestellung stornieren bzw. bei bezahlten Bestellungen erstatten?"))
+      return;
     const res = await fetch(`/api/admin/orders/${orderId}/refund`, { method: "POST" });
     if (!res.ok) {
       alert("Erstattung fehlgeschlagen.");
       return;
     }
-    router.refresh();
+    startTransition(() => router.refresh());
+  }
+
+  async function downloadCsv(eventId: string, title: string) {
+    const res = await fetch(`/api/admin/orders/export?event=${encodeURIComponent(eventId)}`);
+    if (!res.ok) {
+      alert("Export fehlgeschlagen.");
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `bestellungen-${eventId}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  if (editing) {
+    return (
+      <EventEditor
+        initial={editing === "new" ? null : editing}
+        onClose={() => {
+          setEditing(null);
+          startTransition(() => router.refresh());
+        }}
+      />
+    );
   }
 
   return (
     <section className="pb-20">
       <div className="container-wide">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="text-[13px] text-neutral-500">Live aus der Datenbank</div>
-          <button
-            onClick={logout}
-            className="rounded-full border border-royal-700/15 bg-white px-4 py-2 text-[12px] font-semibold uppercase tracking-wider text-neutral-600 transition hover:text-royal-800"
-          >
-            Abmelden
-          </button>
+          <nav className="inline-flex rounded-full border border-royal-700/15 bg-white p-1 text-[13px]">
+            {([
+              ["konzerte", "Konzerte"],
+              ["bestellungen", "Bestellungen"]
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTab(key)}
+                className={`rounded-full px-4 py-1.5 font-semibold transition ${
+                  tab === key
+                    ? "bg-royal-800 text-cream-50"
+                    : "text-neutral-600 hover:text-royal-800"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+          <div className="flex items-center gap-3">
+            <span className="text-[13px] text-neutral-500">
+              {isPending ? "Aktualisiert …" : "Live aus der Datenbank"}
+            </span>
+            <button
+              onClick={logout}
+              className="rounded-full border border-royal-700/15 bg-white px-4 py-2 text-[12px] font-semibold uppercase tracking-wider text-neutral-600 transition hover:text-royal-800"
+            >
+              Abmelden
+            </button>
+          </div>
         </div>
 
         {dbError && (
@@ -75,12 +148,6 @@ export default function AdminDashboard({
             <strong>DB nicht erreichbar:</strong> {dbError}
           </div>
         )}
-
-        <div className="mt-6 rounded-2xl border border-royal-700/10 bg-cream-100/70 px-5 py-4 text-[13px] text-neutral-700">
-          Die Konzert-Verwaltung mit Erstellen, Bearbeiten und Stripe-Produkt-Sync
-          wird gerade gebaut (Phase 3). Aktuell siehst du eine Übersicht der
-          Konzerte und alle Bestellungen inkl. Storno-Button.
-        </div>
 
         {/* Stats */}
         <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -91,136 +158,202 @@ export default function AdminDashboard({
           <StatCard label="Bruttoumsatz" value={formatEUR(stats.gross_cents, "de")} />
         </div>
 
-        <h2 className="display mt-14 text-2xl text-royal-800 sm:text-3xl">
-          Konzerte ({events.length})
-        </h2>
-        <div className="mt-6 overflow-hidden rounded-2xl border border-royal-700/10 bg-white">
-          <table className="w-full text-[13px]">
-            <thead>
-              <tr className="bg-cream-100/70 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-600">
-                <th className="px-4 py-3">Datum</th>
-                <th className="px-4 py-3">Konzert</th>
-                <th className="px-4 py-3">Preis</th>
-                <th className="px-4 py-3">Plätze</th>
-                <th className="px-4 py-3">Verkauf</th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-neutral-500">
-                    Noch keine Konzerte.
-                  </td>
-                </tr>
-              )}
-              {events.map((e) => (
-                <tr key={e.id} className="border-t border-royal-700/8">
-                  <td className="px-4 py-3 whitespace-nowrap text-neutral-700">{e.date}</td>
-                  <td className="px-4 py-3 text-royal-800">
-                    {e.title_de}
-                    {e.archived && (
-                      <span className="ml-2 rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] uppercase tracking-wider text-neutral-500">
-                        archiviert
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {e.price_cents > 0 ? formatEUR(e.price_cents, "de") : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-neutral-700">
-                    {e.capacity > 0 ? `${e.seats_sold} / ${e.capacity}` : "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${
-                        e.sale_active
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-neutral-100 text-neutral-500"
-                      }`}
-                    >
-                      {e.sale_active ? "aktiv" : "inaktiv"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {tab === "konzerte" && (
+          <>
+            <div className="mt-12 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="display text-2xl text-royal-800 sm:text-3xl">
+                Konzerte ({events.length})
+              </h2>
+              <button
+                type="button"
+                onClick={() => setEditing("new")}
+                className="btn-primary"
+              >
+                + Neues Konzert
+              </button>
+            </div>
 
-        <h2 className="display mt-14 text-2xl text-royal-800 sm:text-3xl">Bestellungen</h2>
-        <div className="mt-6 overflow-hidden rounded-2xl border border-royal-700/10 bg-white">
-          <table className="w-full text-[13px]">
-            <thead>
-              <tr className="bg-cream-100/70 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-600">
-                <th className="px-4 py-3">ID</th>
-                <th className="px-4 py-3">Konzert</th>
-                <th className="px-4 py-3">Besteller</th>
-                <th className="px-4 py-3">Karten</th>
-                <th className="px-4 py-3">Betrag</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Datum</th>
-                <th className="px-4 py-3 text-right">Aktion</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-neutral-500">
-                    Noch keine Bestellungen.
-                  </td>
-                </tr>
-              )}
-              {orders.map((o) => {
-                const ev = events.find((e) => e.id === o.event_id);
-                return (
-                  <tr key={o.id} className="border-t border-royal-700/8 align-top">
-                    <td className="px-4 py-3 font-mono text-[12px] text-neutral-500">
-                      {o.id}
-                    </td>
-                    <td className="px-4 py-3 text-royal-800">
-                      {ev?.title_de ?? o.event_id}
-                      {ev && (
-                        <div className="text-[11px] text-neutral-500">{ev.date}</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {o.buyer_name}
-                      <div className="text-[11px] text-neutral-500">{o.buyer_email}</div>
-                    </td>
-                    <td className="px-4 py-3">{o.quantity}</td>
-                    <td className="px-4 py-3">{formatEUR(o.amount_cents, "de")}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${STATUS_TONE[o.status] ?? "bg-neutral-100 text-neutral-600"}`}
-                      >
-                        {STATUS_LABEL[o.status] ?? o.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-neutral-500">
-                      {new Date(o.created_at).toLocaleString("de-DE", {
-                        day: "2-digit",
-                        month: "2-digit",
-                        year: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      })}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {(o.status === "paid" || o.status === "pending") && (
-                        <button
-                          onClick={() => refundOrder(o.id)}
-                          className="rounded-full border border-royal-700/15 bg-white px-3 py-1.5 text-[11px] font-semibold text-royal-800 transition hover:border-rose-300 hover:text-rose-700"
-                        >
-                          Stornieren
-                        </button>
-                      )}
-                    </td>
+            <div className="mt-6 overflow-hidden rounded-2xl border border-royal-700/10 bg-white">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="bg-cream-100/70 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-600">
+                    <th className="px-4 py-3">Datum</th>
+                    <th className="px-4 py-3">Konzert</th>
+                    <th className="px-4 py-3">Preis</th>
+                    <th className="px-4 py-3">Plätze</th>
+                    <th className="px-4 py-3">Verkauf</th>
+                    <th className="px-4 py-3">Stripe</th>
+                    <th className="px-4 py-3 text-right">Aktion</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {events.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-10 text-center text-neutral-500">
+                        Noch keine Konzerte. „+ Neues Konzert" anlegen.
+                      </td>
+                    </tr>
+                  )}
+                  {events.map((e) => (
+                    <tr key={e.id} className="border-t border-royal-700/8 align-top">
+                      <td className="px-4 py-3 whitespace-nowrap text-neutral-700">
+                        {e.date}
+                        {e.time && (
+                          <div className="text-[11px] text-neutral-500">{e.time}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-royal-800">{e.title_de}</div>
+                        {e.archived && (
+                          <span className="mt-1 inline-block rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] uppercase tracking-wider text-neutral-500">
+                            archiviert
+                          </span>
+                        )}
+                        {e.highlight && !e.archived && (
+                          <span className="ml-1 mt-1 inline-block rounded-full bg-gold-50 px-2 py-0.5 text-[10px] uppercase tracking-wider text-gold-700">
+                            highlight
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {e.price_cents > 0 ? formatEUR(e.price_cents, "de") : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-neutral-700">
+                        {e.capacity > 0 ? `${e.seats_sold} / ${e.capacity}` : "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                            e.sale_active
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-neutral-100 text-neutral-500"
+                          }`}
+                        >
+                          {e.sale_active ? "aktiv" : "inaktiv"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-mono text-[11px] text-neutral-500">
+                        {e.stripe_product_id ? "✓ synced" : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-2">
+                          {e.capacity > 0 && e.seats_sold > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => downloadCsv(e.id, e.title_de)}
+                              className="rounded-full border border-royal-700/15 bg-white px-3 py-1.5 text-[11px] font-semibold text-royal-800 transition hover:border-gold-300"
+                            >
+                              CSV
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setEditing(e)}
+                            className="rounded-full border border-royal-700/15 bg-white px-3 py-1.5 text-[11px] font-semibold text-royal-800 transition hover:border-gold-300"
+                          >
+                            Bearbeiten
+                          </button>
+                          {!e.archived && (
+                            <button
+                              type="button"
+                              onClick={() => archiveEvent(e.id)}
+                              className="rounded-full border border-royal-700/15 bg-white px-3 py-1.5 text-[11px] font-semibold text-royal-800 transition hover:border-rose-300 hover:text-rose-700"
+                            >
+                              Archiv
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {tab === "bestellungen" && (
+          <>
+            <h2 className="display mt-12 text-2xl text-royal-800 sm:text-3xl">
+              Bestellungen
+            </h2>
+            <div className="mt-6 overflow-hidden rounded-2xl border border-royal-700/10 bg-white">
+              <table className="w-full text-[13px]">
+                <thead>
+                  <tr className="bg-cream-100/70 text-left text-[11px] font-semibold uppercase tracking-wider text-neutral-600">
+                    <th className="px-4 py-3">ID</th>
+                    <th className="px-4 py-3">Konzert</th>
+                    <th className="px-4 py-3">Besteller</th>
+                    <th className="px-4 py-3">Karten</th>
+                    <th className="px-4 py-3">Betrag</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Datum</th>
+                    <th className="px-4 py-3 text-right">Aktion</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.length === 0 && (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-10 text-center text-neutral-500">
+                        Noch keine Bestellungen.
+                      </td>
+                    </tr>
+                  )}
+                  {orders.map((o) => {
+                    const ev = events.find((e) => e.id === o.event_id);
+                    return (
+                      <tr key={o.id} className="border-t border-royal-700/8 align-top">
+                        <td className="px-4 py-3 font-mono text-[12px] text-neutral-500">
+                          {o.id}
+                        </td>
+                        <td className="px-4 py-3 text-royal-800">
+                          {ev?.title_de ?? o.event_id}
+                          {ev && (
+                            <div className="text-[11px] text-neutral-500">{ev.date}</div>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {o.buyer_name}
+                          <div className="text-[11px] text-neutral-500">
+                            {o.buyer_email}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">{o.quantity}</td>
+                        <td className="px-4 py-3">{formatEUR(o.amount_cents, "de")}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${STATUS_TONE[o.status] ?? "bg-neutral-100 text-neutral-600"}`}
+                          >
+                            {STATUS_LABEL[o.status] ?? o.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-neutral-500">
+                          {new Date(o.created_at).toLocaleString("de-DE", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {(o.status === "paid" || o.status === "pending") && (
+                            <button
+                              onClick={() => refundOrder(o.id)}
+                              className="rounded-full border border-royal-700/15 bg-white px-3 py-1.5 text-[11px] font-semibold text-royal-800 transition hover:border-rose-300 hover:text-rose-700"
+                            >
+                              Stornieren
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
     </section>
   );
