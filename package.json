@@ -13,6 +13,7 @@
     "@neon/env": "^2.1.9",
     "@neondatabase/serverless": "^1.2.1",
     "@stripe/stripe-js": "^10.3.0",
+    "@vercel/blob": "^2.9.0",
     "framer-motion": "^11.11.17",
     "nanoid": "^6.0.2",
     "next": "^15.5.24",
