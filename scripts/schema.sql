@@ -56,7 +56,9 @@ CREATE TABLE IF NOT EXISTS orders (
   note TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   paid_at TIMESTAMPTZ,
-  cancelled_at TIMESTAMPTZ
+  cancelled_at TIMESTAMPTZ,
+  checked_in_at TIMESTAMPTZ,
+  checked_in_count INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_orders_token ON orders(token);

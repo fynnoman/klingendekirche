@@ -78,6 +78,8 @@ export type OrderRow = {
   created_at: string;
   paid_at: string | null;
   cancelled_at: string | null;
+  checked_in_at: string | null;
+  checked_in_count: number;
 };
 
 export function formatEUR(amountCents: number, lang: "de" | "en" = "de") {

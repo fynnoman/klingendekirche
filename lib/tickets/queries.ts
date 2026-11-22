@@ -251,6 +251,76 @@ export async function getOrderBySession(session: string): Promise<OrderRow | nul
   return (rows[0] as unknown as OrderRow) ?? null;
 }
 
+export async function listPaidOrdersForEvent(eventId: string): Promise<OrderRow[]> {
+  const q = sql();
+  const rows = (await q`
+    SELECT * FROM orders
+    WHERE event_id = ${eventId}
+      AND status = 'paid'
+    ORDER BY buyer_name ASC
+  `) as Row[];
+  return rows as unknown as OrderRow[];
+}
+
+export async function updateOrderBuyer(input: {
+  orderId: string;
+  buyerName: string;
+  buyerEmail: string;
+}): Promise<OrderRow | null> {
+  const q = sql();
+  const rows = (await q`
+    UPDATE orders
+    SET buyer_name = ${input.buyerName},
+        buyer_email = ${input.buyerEmail}
+    WHERE id = ${input.orderId}
+    RETURNING *
+  `) as Row[];
+  return (rows[0] as unknown as OrderRow) ?? null;
+}
+
+export async function updateOrderNote(input: {
+  orderId: string;
+  note: string | null;
+}): Promise<OrderRow | null> {
+  const q = sql();
+  const rows = (await q`
+    UPDATE orders
+    SET note = ${input.note}
+    WHERE id = ${input.orderId}
+    RETURNING *
+  `) as Row[];
+  return (rows[0] as unknown as OrderRow) ?? null;
+}
+
+/**
+ * Setzt wie viele der gebuchten Karten einer Order eingescannt wurden.
+ * 0 löscht den Einlass, > 0 stempelt checked_in_at.
+ */
+export async function setOrderCheckedIn(input: {
+  orderId: string;
+  count: number;
+}): Promise<OrderRow | null> {
+  const q = sql();
+  const count = Math.max(0, Math.round(input.count));
+  if (count === 0) {
+    const rows = (await q`
+      UPDATE orders
+      SET checked_in_count = 0, checked_in_at = NULL
+      WHERE id = ${input.orderId}
+      RETURNING *
+    `) as Row[];
+    return (rows[0] as unknown as OrderRow) ?? null;
+  }
+  const rows = (await q`
+    UPDATE orders
+    SET checked_in_count = LEAST(${count}, quantity),
+        checked_in_at = COALESCE(checked_in_at, NOW())
+    WHERE id = ${input.orderId}
+    RETURNING *
+  `) as Row[];
+  return (rows[0] as unknown as OrderRow) ?? null;
+}
+
 export async function listOrders(options: {
   limit?: number;
   status?: OrderStatus;
