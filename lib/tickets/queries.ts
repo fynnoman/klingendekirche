@@ -8,6 +8,38 @@ import type {
 
 type Row = Record<string, unknown>;
 
+// Neon liefert date/timestamp-Spalten als JS-Date-Objekte. Für die Serialisierung
+// ins JSX und über Server→Client Boundaries normieren wir sie zu Strings.
+function toIsoDate(v: unknown): string {
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === "string") return v.slice(0, 10);
+  return "";
+}
+function toIsoTimestamp(v: unknown): string | null {
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === "string" && v) return v;
+  return null;
+}
+
+function mapEventRow(r: Row): EventRow {
+  return {
+    ...(r as unknown as EventRow),
+    date: toIsoDate(r.date),
+    created_at: toIsoTimestamp(r.created_at) ?? "",
+    updated_at: toIsoTimestamp(r.updated_at) ?? ""
+  };
+}
+
+function mapOrderRow(r: Row): OrderRow {
+  return {
+    ...(r as unknown as OrderRow),
+    created_at: toIsoTimestamp(r.created_at) ?? "",
+    paid_at: toIsoTimestamp(r.paid_at),
+    cancelled_at: toIsoTimestamp(r.cancelled_at),
+    checked_in_at: toIsoTimestamp(r.checked_in_at)
+  };
+}
+
 // ---------------------------------------------------------------------------
 // events
 // ---------------------------------------------------------------------------
@@ -15,7 +47,7 @@ type Row = Record<string, unknown>;
 export async function listAllEvents(): Promise<EventRow[]> {
   const q = sql();
   const rows = (await q`SELECT * FROM events ORDER BY date ASC`) as Row[];
-  return rows as unknown as EventRow[];
+  return rows.map(mapEventRow);
 }
 
 /**
@@ -30,7 +62,7 @@ export async function listUpcomingEvents(): Promise<EventRow[]> {
       AND date >= CURRENT_DATE
     ORDER BY date ASC, time ASC NULLS LAST
   `) as Row[];
-  return rows as unknown as EventRow[];
+  return rows.map(mapEventRow);
 }
 
 /** Das nächste Konzert für den Hero. Highlight hat Vorrang. */
@@ -43,13 +75,13 @@ export async function getNextFeaturedEvent(): Promise<EventRow | null> {
     ORDER BY highlight DESC, date ASC
     LIMIT 1
   `) as Row[];
-  return (rows[0] as unknown as EventRow) ?? null;
+  return rows[0] ? mapEventRow(rows[0]) : null;
 }
 
 export async function getEventById(id: string): Promise<EventRow | null> {
   const q = sql();
   const rows = (await q`SELECT * FROM events WHERE id = ${id} LIMIT 1`) as Row[];
-  return (rows[0] as unknown as EventRow) ?? null;
+  return rows[0] ? mapEventRow(rows[0]) : null;
 }
 
 export async function insertEvent(id: string, input: EventInput): Promise<EventRow> {
@@ -73,7 +105,7 @@ export async function insertEvent(id: string, input: EventInput): Promise<EventR
     )
     RETURNING *
   `) as Row[];
-  return rows[0] as unknown as EventRow;
+  return mapEventRow(rows[0]);
 }
 
 export async function updateEvent(id: string, input: EventInput): Promise<EventRow | null> {
@@ -101,7 +133,7 @@ export async function updateEvent(id: string, input: EventInput): Promise<EventR
     WHERE id = ${id}
     RETURNING *
   `) as Row[];
-  return (rows[0] as unknown as EventRow) ?? null;
+  return rows[0] ? mapEventRow(rows[0]) : null;
 }
 
 export async function setEventStripeIds(
@@ -142,7 +174,7 @@ export async function reserveSeats(
       AND seats_sold + ${quantity} <= capacity
     RETURNING *
   `) as Row[];
-  return (rows[0] as unknown as EventRow) ?? null;
+  return rows[0] ? mapEventRow(rows[0]) : null;
 }
 
 export async function releaseSeats(
@@ -201,7 +233,7 @@ export async function markOrderPaid(input: {
       AND status IN ('pending','failed')
     RETURNING *
   `) as Row[];
-  return (rows[0] as unknown as OrderRow) ?? null;
+  return rows[0] ? mapOrderRow(rows[0]) : null;
 }
 
 export async function markOrderExpired(stripeSessionId: string): Promise<OrderRow | null> {
@@ -213,7 +245,7 @@ export async function markOrderExpired(stripeSessionId: string): Promise<OrderRo
       AND status = 'pending'
     RETURNING *
   `) as Row[];
-  return (rows[0] as unknown as OrderRow) ?? null;
+  return rows[0] ? mapOrderRow(rows[0]) : null;
 }
 
 export async function markOrderCancelled(input: {
@@ -230,25 +262,25 @@ export async function markOrderCancelled(input: {
       AND status IN ('pending','paid')
     RETURNING *
   `) as Row[];
-  return (rows[0] as unknown as OrderRow) ?? null;
+  return rows[0] ? mapOrderRow(rows[0]) : null;
 }
 
 export async function getOrderByToken(token: string): Promise<OrderRow | null> {
   const q = sql();
   const rows = (await q`SELECT * FROM orders WHERE token = ${token} LIMIT 1`) as Row[];
-  return (rows[0] as unknown as OrderRow) ?? null;
+  return rows[0] ? mapOrderRow(rows[0]) : null;
 }
 
 export async function getOrderById(id: string): Promise<OrderRow | null> {
   const q = sql();
   const rows = (await q`SELECT * FROM orders WHERE id = ${id} LIMIT 1`) as Row[];
-  return (rows[0] as unknown as OrderRow) ?? null;
+  return rows[0] ? mapOrderRow(rows[0]) : null;
 }
 
 export async function getOrderBySession(session: string): Promise<OrderRow | null> {
   const q = sql();
   const rows = (await q`SELECT * FROM orders WHERE stripe_session_id = ${session} LIMIT 1`) as Row[];
-  return (rows[0] as unknown as OrderRow) ?? null;
+  return rows[0] ? mapOrderRow(rows[0]) : null;
 }
 
 export async function listPaidOrdersForEvent(eventId: string): Promise<OrderRow[]> {
@@ -259,7 +291,7 @@ export async function listPaidOrdersForEvent(eventId: string): Promise<OrderRow[
       AND status = 'paid'
     ORDER BY buyer_name ASC
   `) as Row[];
-  return rows as unknown as OrderRow[];
+  return rows.map(mapOrderRow);
 }
 
 export async function updateOrderBuyer(input: {
@@ -275,7 +307,7 @@ export async function updateOrderBuyer(input: {
     WHERE id = ${input.orderId}
     RETURNING *
   `) as Row[];
-  return (rows[0] as unknown as OrderRow) ?? null;
+  return rows[0] ? mapOrderRow(rows[0]) : null;
 }
 
 export async function updateOrderNote(input: {
@@ -289,7 +321,7 @@ export async function updateOrderNote(input: {
     WHERE id = ${input.orderId}
     RETURNING *
   `) as Row[];
-  return (rows[0] as unknown as OrderRow) ?? null;
+  return rows[0] ? mapOrderRow(rows[0]) : null;
 }
 
 /**
@@ -309,7 +341,7 @@ export async function setOrderCheckedIn(input: {
       WHERE id = ${input.orderId}
       RETURNING *
     `) as Row[];
-    return (rows[0] as unknown as OrderRow) ?? null;
+    return rows[0] ? mapOrderRow(rows[0]) : null;
   }
   const rows = (await q`
     UPDATE orders
@@ -318,7 +350,7 @@ export async function setOrderCheckedIn(input: {
     WHERE id = ${input.orderId}
     RETURNING *
   `) as Row[];
-  return (rows[0] as unknown as OrderRow) ?? null;
+  return rows[0] ? mapOrderRow(rows[0]) : null;
 }
 
 export async function listOrders(options: {
@@ -354,7 +386,7 @@ export async function listOrders(options: {
       ORDER BY created_at DESC LIMIT ${limit}
     `) as Row[];
   }
-  return rows as unknown as OrderRow[];
+  return rows.map(mapOrderRow);
 }
 
 export async function countStats(): Promise<{
