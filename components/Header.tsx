@@ -213,6 +213,14 @@ export default function Header() {
                   {t("header.tickets")}
                 </Link>
               </div>
+              <div className="mt-6 flex justify-center">
+                <Link
+                  href="/admin/login"
+                  className="text-[11px] font-semibold uppercase tracking-[0.22em] text-neutral-500 hover:text-royal-800"
+                >
+                  {t("footer.admin")}
+                </Link>
+              </div>
             </div>
           </div>
         )}

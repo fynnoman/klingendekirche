@@ -116,6 +116,10 @@ export default function Footer() {
             <Link href="/disclaimer" className="hover:text-royal-700">
               {t("footer.disclaimer")}
             </Link>
+            <span aria-hidden className="text-neutral-300">·</span>
+            <Link href="/admin/login" className="hover:text-royal-700">
+              {t("footer.admin")}
+            </Link>
           </div>
         </div>
       </div>
