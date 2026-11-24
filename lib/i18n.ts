@@ -15,6 +15,8 @@ export const UI: Record<string, TR> = {
   "nav.mitgliedschaft": { de: "Mitgliedschaft", en: "Membership" },
   "nav.orgel": { de: "Orgel", en: "Organ" },
   "nav.verein": { de: "Verein", en: "Association" },
+  "nav.galerien": { de: "Galerien", en: "Galleries" },
+  "nav.archiv": { de: "Archiv", en: "Archive" },
   "nav.partner": { de: "Partner", en: "Partners" },
   "nav.kontakt": { de: "Kontakt", en: "Contact" },
 

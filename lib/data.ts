@@ -51,6 +51,8 @@ export const NAV: { labelKey: string; href: string }[] = [
   { labelKey: "nav.mitgliedschaft", href: "/mitgliedschaft" },
   { labelKey: "nav.orgel", href: "/orgel" },
   { labelKey: "nav.verein", href: "/verein" },
+  { labelKey: "nav.galerien", href: "/galerien" },
+  { labelKey: "nav.archiv", href: "/archiv" },
   { labelKey: "nav.partner", href: "/partner" },
   { labelKey: "nav.kontakt", href: "/kontakt" }
 ];
