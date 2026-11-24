@@ -20,11 +20,9 @@ function categoryLabel(cat: string, lang: "de" | "en"): string {
 }
 
 export default function HomeView({
-  featured,
-  upcoming
+  featured
 }: {
   featured: EventRow | null;
-  upcoming: EventRow[];
 }) {
   const { lang, t } = useLang();
 
@@ -183,54 +181,20 @@ export default function HomeView({
         </section>
       )}
 
-      {upcoming.length > 0 && (
-        <section className="border-t border-royal-700/10 bg-white">
-          <div className="container-xl py-12 sm:py-16">
-            <FadeIn>
-              <div className="flex flex-col items-start justify-between gap-4 border-b border-royal-700/10 pb-6 sm:flex-row sm:items-end">
-                <h2 className="display text-2xl text-royal-800 sm:text-3xl">
-                  {t("home.upcoming")}
-                </h2>
-                <Link
-                  href="/termine"
-                  className="text-sm font-semibold uppercase tracking-[0.18em] text-royal-700 hover:text-gold-600"
-                >
-                  {t("home.all_events")} →
-                </Link>
-              </div>
-            </FadeIn>
-
-            <div className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 -mx-4 px-4 sm:-mx-0 sm:px-0">
-              {upcoming.map((e) => (
-                <Link
-                  key={e.id}
-                  href={`/tickets/${e.id}`}
-                  className="group relative flex min-w-[280px] max-w-[320px] flex-1 shrink-0 snap-start flex-col rounded-2xl border border-royal-700/10 bg-cream-50 p-6 transition hover:border-gold-300 hover:shadow-card sm:min-w-[300px]"
-                >
-                  <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.22em]">
-                    <span className="text-gold-600">{categoryLabel(e.category, lang)}</span>
-                  </div>
-                  <div className="display mt-3 text-xl leading-snug text-royal-800">
-                    {eventText(e.title_de, e.title_en, lang)}
-                  </div>
-                  {e.subtitle_de && (
-                    <div className="mt-1 text-sm italic text-neutral-600 line-clamp-2">
-                      {eventText(e.subtitle_de, e.subtitle_en, lang)}
-                    </div>
-                  )}
-                  <div className="mt-5 border-t border-royal-700/10 pt-4 text-[13px] text-neutral-700">
-                    {formatEventDate(e.date, lang)}
-                    {e.time && <span className="text-neutral-500"> · {e.time}</span>}
-                  </div>
-                  <span className="mt-3 text-sm font-semibold uppercase tracking-[0.18em] text-royal-700 transition group-hover:text-gold-600">
-                    {t("home.details")} →
-                  </span>
-                </Link>
-              ))}
+      <section className="border-t border-royal-700/10 bg-white">
+        <div className="container-xl py-10 sm:py-12">
+          <FadeIn>
+            <div className="flex justify-center">
+              <Link
+                href="/termine"
+                className="btn-ghost text-sm px-7 py-3 tracking-[0.18em] uppercase"
+              >
+                {t("home.all_events")} →
+              </Link>
             </div>
-          </div>
-        </section>
-      )}
+          </FadeIn>
+        </div>
+      </section>
 
       <section className="border-t border-royal-700/10 bg-cream-100/60">
         <div className="container-xl py-16 sm:py-24">
