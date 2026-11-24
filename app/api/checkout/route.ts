@@ -26,9 +26,20 @@ export async function POST(req: Request) {
     typeof body.name === "string" ? body.name.trim().slice(0, 200) : "";
   const buyerEmail =
     typeof body.email === "string" ? body.email.trim().slice(0, 200) : "";
-  const quantity = Number.isFinite(body.quantity as number)
-    ? Math.max(1, Math.min(10, Math.floor(body.quantity as number)))
+
+  const quantityRaw = Number.isFinite(body.quantity as number)
+    ? Math.max(0, Math.min(10, Math.floor(body.quantity as number)))
     : 1;
+  const quantityReducedRaw = Number.isFinite(body.quantity_reduced as number)
+    ? Math.max(0, Math.min(10, Math.floor(body.quantity_reduced as number)))
+    : 0;
+  const quantityRegular = quantityRaw;
+  const quantityReduced = quantityReducedRaw;
+  const totalQuantity = quantityRegular + quantityReduced;
+
+  if (totalQuantity < 1 || totalQuantity > 10) {
+    return NextResponse.json({ ok: false, error: "invalid_fields" }, { status: 400 });
+  }
 
   if (!eventId || !buyerName || !buyerEmail || !EMAIL_RE.test(buyerEmail)) {
     return NextResponse.json({ ok: false, error: "invalid_fields" }, { status: 400 });
@@ -53,8 +64,15 @@ export async function POST(req: Request) {
     );
   }
 
-  // Atomar Plätze reservieren
-  const reservation = await reserveSeats(eventId, quantity);
+  // Ermäßigte Karten nur zulassen, wenn im Event auch ein ermäßigter Preis gesetzt ist
+  const hasReduced =
+    typeof event.price_reduced_cents === "number" && event.price_reduced_cents > 0;
+  if (quantityReduced > 0 && !hasReduced) {
+    return NextResponse.json({ ok: false, error: "invalid_fields" }, { status: 400 });
+  }
+
+  // Atomar Plätze reservieren (regulär + ermäßigt = Gesamtmenge)
+  const reservation = await reserveSeats(eventId, totalQuantity);
   if (!reservation) {
     return NextResponse.json(
       {
@@ -66,31 +84,52 @@ export async function POST(req: Request) {
     );
   }
 
-  const amountCents = event.price_cents * quantity;
+  const amountCents =
+    quantityRegular * event.price_cents +
+    quantityReduced * (event.price_reduced_cents ?? 0);
   const orderId = `KK-${Date.now().toString(36).toUpperCase()}-${nanoid(5).toUpperCase()}`;
   const token = nanoid(32);
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ?? req.headers.get("origin") ?? "";
 
   try {
-    // Wenn Stripe-Price bereits in Stripe hinterlegt ist (durch Admin-Sync),
-    // nutze die existierende Price – saubere Berichte. Fallback: price_data.
-    const line_items: Array<Record<string, unknown>> = event.stripe_price_id
-      ? [{ price: event.stripe_price_id, quantity }]
-      : [
-          {
-            quantity,
-            price_data: {
-              currency: "eur",
-              unit_amount: event.price_cents,
-              product_data: {
-                name: `Konzertkarte: ${event.title_de}`,
-                description:
-                  `${event.date}${event.time ? " · " + event.time : ""}`
+    const line_items: Array<Record<string, unknown>> = [];
+    if (quantityRegular > 0) {
+      line_items.push(
+        event.stripe_price_id
+          ? { price: event.stripe_price_id, quantity: quantityRegular }
+          : {
+              quantity: quantityRegular,
+              price_data: {
+                currency: "eur",
+                unit_amount: event.price_cents,
+                product_data: {
+                  name: `Konzertkarte: ${event.title_de}`,
+                  description:
+                    `${event.date}${event.time ? " · " + event.time : ""}`
+                }
               }
             }
-          }
-        ];
+      );
+    }
+    if (quantityReduced > 0) {
+      line_items.push(
+        event.stripe_price_reduced_id
+          ? { price: event.stripe_price_reduced_id, quantity: quantityReduced }
+          : {
+              quantity: quantityReduced,
+              price_data: {
+                currency: "eur",
+                unit_amount: event.price_reduced_cents ?? 0,
+                product_data: {
+                  name: `Konzertkarte (ermäßigt): ${event.title_de}`,
+                  description:
+                    `${event.date}${event.time ? " · " + event.time : ""}`
+                }
+              }
+            }
+      );
+    }
 
     const session = await stripe().checkout.sessions.create({
       mode: "payment",
@@ -99,7 +138,8 @@ export async function POST(req: Request) {
       metadata: {
         order_id: orderId,
         event_id: eventId,
-        quantity: String(quantity),
+        quantity: String(totalQuantity),
+        quantity_reduced: String(quantityReduced),
         token
       },
       payment_intent_data: {
@@ -120,7 +160,8 @@ export async function POST(req: Request) {
       eventId,
       buyerName,
       buyerEmail,
-      quantity,
+      quantity: totalQuantity,
+      quantityReduced,
       amountCents,
       status: "pending",
       stripeSessionId: session.id
@@ -134,7 +175,7 @@ export async function POST(req: Request) {
       token
     });
   } catch (err) {
-    await releaseSeats(eventId, quantity).catch(() => undefined);
+    await releaseSeats(eventId, totalQuantity).catch(() => undefined);
     console.error("[checkout] stripe error", err);
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json(

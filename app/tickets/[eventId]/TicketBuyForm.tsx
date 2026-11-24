@@ -6,6 +6,7 @@ import { formatEUR } from "@/lib/tickets/types";
 type Props = {
   eventId: string;
   priceCents: number;
+  priceReducedCents: number | null;
   availableSeats: number;
 };
 
@@ -17,16 +18,37 @@ type SubmitState =
 export default function TicketBuyForm({
   eventId,
   priceCents,
+  priceReducedCents,
   availableSeats
 }: Props) {
-  const maxQty = Math.min(availableSeats, 8);
+  const hasReduced = !!priceReducedCents && priceReducedCents > 0;
+  const maxTotal = Math.min(availableSeats, 8);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [quantity, setQuantity] = useState(1);
+  const [quantityReduced, setQuantityReduced] = useState(0);
   const [agree, setAgree] = useState(false);
   const [state, setState] = useState<SubmitState>({ kind: "idle" });
 
-  const total = quantity * priceCents;
+  const totalCount = quantity + quantityReduced;
+  const total = quantity * priceCents + quantityReduced * (priceReducedCents ?? 0);
+
+  function changeRegular(delta: number) {
+    setQuantity((q) => {
+      const next = Math.max(0, q + delta);
+      if (next + quantityReduced > maxTotal) return q;
+      if (next + quantityReduced === 0) return q;
+      return next;
+    });
+  }
+  function changeReduced(delta: number) {
+    setQuantityReduced((q) => {
+      const next = Math.max(0, q + delta);
+      if (next + quantity > maxTotal) return q;
+      if (next + quantity === 0) return q;
+      return next;
+    });
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -35,12 +57,22 @@ export default function TicketBuyForm({
       setState({ kind: "error", message: "Bitte den AGB zustimmen." });
       return;
     }
+    if (totalCount < 1) {
+      setState({ kind: "error", message: "Bitte mindestens eine Karte wählen." });
+      return;
+    }
     setState({ kind: "sending" });
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId, name, email, quantity })
+        body: JSON.stringify({
+          eventId,
+          name,
+          email,
+          quantity,
+          quantity_reduced: quantityReduced
+        })
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.ok === false) {
@@ -77,8 +109,14 @@ export default function TicketBuyForm({
           Jetzt sichern.
         </h2>
         <p className="mt-2 text-sm text-neutral-600">
-          {formatEUR(priceCents, "de")} pro Karte. Zahlung per Karte, Apple Pay
-          oder Google Pay.
+          {formatEUR(priceCents, "de")} pro Karte
+          {hasReduced && (
+            <>
+              {" "}
+              · Ermäßigt {formatEUR(priceReducedCents!, "de")}
+            </>
+          )}
+          . Zahlung per Karte, Apple Pay oder Google Pay.
         </p>
       </div>
 
@@ -104,35 +142,27 @@ export default function TicketBuyForm({
             className="rounded-xl border border-royal-700/15 bg-white px-4 py-2.5 text-[14px] outline-none focus:border-gold-400"
           />
         </label>
-        <label className="grid gap-1.5 sm:col-span-2">
-          <span className="text-[12px] font-medium text-neutral-700">
-            Anzahl Karten
-          </span>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              className="h-10 w-10 rounded-xl border border-royal-700/15 bg-white text-lg text-royal-800 transition hover:border-gold-300"
-              aria-label="Weniger"
-            >
-              −
-            </button>
-            <div className="min-w-[4rem] rounded-xl border border-royal-700/15 bg-cream-50 px-4 py-2 text-center text-lg font-medium text-royal-800">
-              {quantity}
-            </div>
-            <button
-              type="button"
-              onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))}
-              className="h-10 w-10 rounded-xl border border-royal-700/15 bg-white text-lg text-royal-800 transition hover:border-gold-300"
-              aria-label="Mehr"
-            >
-              +
-            </button>
-            <span className="text-[12px] text-neutral-500">
-              max. {maxQty} pro Bestellung
-            </span>
-          </div>
-        </label>
+      </div>
+
+      <div className="space-y-3">
+        <QuantityRow
+          label={`Regulär · ${formatEUR(priceCents, "de")}`}
+          value={quantity}
+          onDec={() => changeRegular(-1)}
+          onInc={() => changeRegular(+1)}
+        />
+        {hasReduced && (
+          <QuantityRow
+            label={`Ermäßigt · ${formatEUR(priceReducedCents!, "de")}`}
+            hint="Schüler, Studenten, Auszubildende, Behinderte"
+            value={quantityReduced}
+            onDec={() => changeReduced(-1)}
+            onInc={() => changeReduced(+1)}
+          />
+        )}
+        <div className="text-[12px] text-neutral-500">
+          max. {maxTotal} Karten pro Bestellung insgesamt
+        </div>
       </div>
 
       <label className="flex items-start gap-3 text-[13px] text-neutral-700">
@@ -154,7 +184,9 @@ export default function TicketBuyForm({
 
       <div className="rounded-xl border border-royal-700/10 bg-cream-100/70 px-5 py-4">
         <div className="flex items-baseline justify-between gap-4 text-[14px]">
-          <span className="text-neutral-600">Gesamt</span>
+          <span className="text-neutral-600">
+            Gesamt ({totalCount} {totalCount === 1 ? "Karte" : "Karten"})
+          </span>
           <span className="display text-2xl text-royal-800">
             {formatEUR(total, "de")}
           </span>
@@ -169,7 +201,7 @@ export default function TicketBuyForm({
 
       <button
         type="submit"
-        disabled={state.kind === "sending"}
+        disabled={state.kind === "sending" || totalCount < 1}
         className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70"
       >
         {state.kind === "sending"
@@ -177,5 +209,49 @@ export default function TicketBuyForm({
           : "Weiter zur sicheren Zahlung"}
       </button>
     </form>
+  );
+}
+
+function QuantityRow({
+  label,
+  hint,
+  value,
+  onDec,
+  onInc
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  onDec: () => void;
+  onInc: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-royal-700/10 bg-white px-4 py-3">
+      <div>
+        <div className="text-[13px] font-semibold text-royal-800">{label}</div>
+        {hint && <div className="text-[11px] text-neutral-500">{hint}</div>}
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onDec}
+          className="h-9 w-9 rounded-xl border border-royal-700/15 bg-white text-lg text-royal-800 transition hover:border-gold-300"
+          aria-label="Weniger"
+        >
+          −
+        </button>
+        <div className="min-w-[2.75rem] rounded-xl border border-royal-700/15 bg-cream-50 px-3 py-1.5 text-center text-base font-medium text-royal-800">
+          {value}
+        </div>
+        <button
+          type="button"
+          onClick={onInc}
+          className="h-9 w-9 rounded-xl border border-royal-700/15 bg-white text-lg text-royal-800 transition hover:border-gold-300"
+          aria-label="Mehr"
+        >
+          +
+        </button>
+      </div>
+    </div>
   );
 }

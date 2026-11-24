@@ -179,17 +179,6 @@ export default function HomeView({
               </FadeIn>
             </div>
 
-            <FadeIn delay={0.3}>
-              <div className="mt-20 flex flex-wrap items-center justify-between gap-4 border-t border-royal-700/10 pt-6 text-[11px] font-semibold uppercase tracking-[0.3em] text-gold-700 sm:mt-28">
-                <span>
-                  {t("home.since")} {SITE.foundedYear} · {t("home.founded_signature")}
-                </span>
-                <Link href="/termine" className="group inline-flex items-center gap-2 text-royal-700">
-                  {t("home.all_events")}
-                  <span className="transition group-hover:translate-x-1">→</span>
-                </Link>
-              </div>
-            </FadeIn>
           </div>
         </section>
       )}

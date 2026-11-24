@@ -73,6 +73,11 @@ export async function sendTicketConfirmation(
 
   const portalUrl = `${SITE_URL()}/bestellung/${order.token}`;
   const amount = formatEUR(order.amount_cents, "de");
+  const quantityRegular = order.quantity - order.quantity_reduced;
+  const quantityLabel =
+    order.quantity_reduced > 0
+      ? `${order.quantity} (davon ${quantityRegular} regulär, ${order.quantity_reduced} ermäßigt)`
+      : String(order.quantity);
 
   const html = layout(
     "Ihre Tickets",
@@ -90,7 +95,7 @@ export async function sendTicketConfirmation(
       <table style="width:100%;font-size:14px;color:#333;">
         <tr><td style="padding:3px 0;color:#777;width:140px;">Datum</td><td>${esc(event.dateLabel)}${event.time ? " · " + esc(event.time) : ""}</td></tr>
         <tr><td style="padding:3px 0;color:#777;">Ort</td><td>${esc(event.venue)}</td></tr>
-        <tr><td style="padding:3px 0;color:#777;">Anzahl Karten</td><td>${order.quantity}</td></tr>
+        <tr><td style="padding:3px 0;color:#777;">Anzahl Karten</td><td>${esc(quantityLabel)}</td></tr>
         <tr><td style="padding:3px 0;color:#777;">Bestellnummer</td><td style="font-family:ui-monospace,Menlo,monospace;">${esc(order.id)}</td></tr>
         <tr><td style="padding:3px 0;color:#777;">Betrag</td><td style="font-weight:600;">${amount}</td></tr>
       </table>
@@ -127,7 +132,7 @@ export async function sendTicketConfirmation(
       `Konzert: ${event.title}\n` +
       `Datum: ${event.dateLabel}${event.time ? " · " + event.time : ""}\n` +
       `Ort: ${event.venue}\n` +
-      `Anzahl Karten: ${order.quantity}\n` +
+      `Anzahl Karten: ${quantityLabel}\n` +
       `Bestellnummer: ${order.id}\n` +
       `Betrag: ${amount}\n\n` +
       `Bestellung einsehen oder stornieren: ${portalUrl}`

@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS events (
                     CHECK (category IN ('Konzert','Orgel','Vortrag','Chor','Besonderes')),
   image_url       TEXT,
   price_cents     INTEGER NOT NULL DEFAULT 0,
+  price_reduced_cents INTEGER,
   capacity        INTEGER NOT NULL DEFAULT 0,
   seats_sold      INTEGER NOT NULL DEFAULT 0,
   sale_active     BOOLEAN NOT NULL DEFAULT FALSE,
@@ -28,6 +29,7 @@ CREATE TABLE IF NOT EXISTS events (
   archived        BOOLEAN NOT NULL DEFAULT FALSE,
   stripe_product_id TEXT,
   stripe_price_id   TEXT,
+  stripe_price_reduced_id TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -46,6 +48,7 @@ CREATE TABLE IF NOT EXISTS orders (
   buyer_name TEXT NOT NULL,
   buyer_email TEXT NOT NULL,
   quantity INTEGER NOT NULL CHECK (quantity > 0),
+  quantity_reduced INTEGER NOT NULL DEFAULT 0,
   amount_cents INTEGER NOT NULL,
   currency TEXT NOT NULL DEFAULT 'eur',
   status TEXT NOT NULL CHECK (status IN ('pending','paid','cancelled','refunded','failed','expired')),

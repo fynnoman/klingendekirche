@@ -90,7 +90,8 @@ export async function insertEvent(id: string, input: EventInput): Promise<EventR
     INSERT INTO events (
       id, title_de, title_en, subtitle_de, subtitle_en,
       date, time, venue_de, venue_en, description_de, description_en,
-      category, image_url, price_cents, capacity, sale_active, highlight,
+      category, image_url, price_cents, price_reduced_cents,
+      capacity, sale_active, highlight,
       archived, created_at, updated_at
     ) VALUES (
       ${id}, ${input.title_de}, ${input.title_en ?? null},
@@ -99,7 +100,8 @@ export async function insertEvent(id: string, input: EventInput): Promise<EventR
       ${input.venue_de}, ${input.venue_en ?? null},
       ${input.description_de}, ${input.description_en ?? null},
       ${input.category}, ${input.image_url ?? null},
-      ${input.price_cents}, ${input.capacity},
+      ${input.price_cents}, ${input.price_reduced_cents ?? null},
+      ${input.capacity},
       ${input.sale_active}, ${input.highlight},
       ${input.archived ?? false}, NOW(), NOW()
     )
@@ -125,6 +127,7 @@ export async function updateEvent(id: string, input: EventInput): Promise<EventR
       category = ${input.category},
       image_url = ${input.image_url ?? null},
       price_cents = ${input.price_cents},
+      price_reduced_cents = ${input.price_reduced_cents ?? null},
       capacity = ${input.capacity},
       sale_active = ${input.sale_active},
       highlight = ${input.highlight},
@@ -139,13 +142,15 @@ export async function updateEvent(id: string, input: EventInput): Promise<EventR
 export async function setEventStripeIds(
   id: string,
   productId: string | null,
-  priceId: string | null
+  priceId: string | null,
+  priceReducedId: string | null
 ): Promise<void> {
   const q = sql();
   await q`
     UPDATE events
     SET stripe_product_id = ${productId},
         stripe_price_id = ${priceId},
+        stripe_price_reduced_id = ${priceReducedId},
         updated_at = NOW()
     WHERE id = ${id}
   `;
@@ -200,6 +205,7 @@ export async function insertOrder(order: {
   buyerName: string;
   buyerEmail: string;
   quantity: number;
+  quantityReduced?: number;
   amountCents: number;
   currency?: string;
   status: OrderStatus;
@@ -208,10 +214,10 @@ export async function insertOrder(order: {
   const q = sql();
   await q`
     INSERT INTO orders (
-      id, token, event_id, buyer_name, buyer_email, quantity,
+      id, token, event_id, buyer_name, buyer_email, quantity, quantity_reduced,
       amount_cents, currency, status, stripe_session_id
     ) VALUES (
-      ${order.id}, ${order.token}, ${order.eventId}, ${order.buyerName}, ${order.buyerEmail}, ${order.quantity},
+      ${order.id}, ${order.token}, ${order.eventId}, ${order.buyerName}, ${order.buyerEmail}, ${order.quantity}, ${order.quantityReduced ?? 0},
       ${order.amountCents}, ${order.currency ?? "eur"}, ${order.status}, ${order.stripeSessionId ?? null}
     )
   `;

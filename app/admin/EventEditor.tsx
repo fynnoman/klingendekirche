@@ -30,6 +30,7 @@ type FormState = {
   category: EventCategory;
   image_url: string;
   price_eur: string;
+  price_reduced_eur: string;
   capacity: string;
   sale_active: boolean;
   highlight: boolean;
@@ -52,6 +53,7 @@ function initialState(ev: EventRow | null): FormState {
       category: "Konzert",
       image_url: "",
       price_eur: "0.00",
+      price_reduced_eur: "",
       capacity: "0",
       sale_active: false,
       highlight: false,
@@ -72,6 +74,10 @@ function initialState(ev: EventRow | null): FormState {
     category: ev.category,
     image_url: ev.image_url ?? "",
     price_eur: (ev.price_cents / 100).toFixed(2),
+    price_reduced_eur:
+      ev.price_reduced_cents && ev.price_reduced_cents > 0
+        ? (ev.price_reduced_cents / 100).toFixed(2)
+        : "",
     capacity: String(ev.capacity),
     sale_active: ev.sale_active,
     highlight: ev.highlight,
@@ -128,6 +134,16 @@ export default function EventEditor({ initial, onClose }: Props) {
       setSaving(false);
       return;
     }
+    let priceReducedCents: number | null = null;
+    if (form.price_reduced_eur.trim() !== "") {
+      const reducedEur = parseFloat(form.price_reduced_eur.replace(",", "."));
+      if (!Number.isFinite(reducedEur) || reducedEur < 0) {
+        setError("Ermäßigter Preis ungültig.");
+        setSaving(false);
+        return;
+      }
+      priceReducedCents = reducedEur > 0 ? Math.round(reducedEur * 100) : null;
+    }
     const capacity = parseInt(form.capacity, 10);
     if (!Number.isFinite(capacity) || capacity < 0) {
       setError("Kapazität ungültig.");
@@ -150,6 +166,7 @@ export default function EventEditor({ initial, onClose }: Props) {
       category: form.category,
       image_url: form.image_url || null,
       price_cents: Math.round(priceEur * 100),
+      price_reduced_cents: priceReducedCents,
       capacity,
       sale_active: form.sale_active,
       highlight: form.highlight,
@@ -339,7 +356,7 @@ export default function EventEditor({ initial, onClose }: Props) {
 
           {/* Verkauf */}
           <h3 className="eyebrow mt-10 mb-4">Ticketverkauf</h3>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Preis pro Karte (€)">
               <input
                 type="number"
@@ -347,6 +364,17 @@ export default function EventEditor({ initial, onClose }: Props) {
                 step="0.50"
                 value={form.price_eur}
                 onChange={(e) => set("price_eur", e.target.value)}
+                className="input"
+              />
+            </Field>
+            <Field label="Ermäßigter Preis (€, leer = keine Ermäßigung)">
+              <input
+                type="number"
+                min="0"
+                step="0.50"
+                value={form.price_reduced_eur}
+                onChange={(e) => set("price_reduced_eur", e.target.value)}
+                placeholder="z.B. für Schüler / Studenten"
                 className="input"
               />
             </Field>

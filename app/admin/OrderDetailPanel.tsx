@@ -157,7 +157,14 @@ export default function OrderDetailPanel({
             <dl className="mt-4 grid grid-cols-2 gap-3 text-[13px]">
               <div className="rounded-xl border border-royal-700/10 bg-cream-50 px-4 py-3">
                 <dt className="text-[10px] uppercase tracking-wider text-gold-600">Karten</dt>
-                <dd className="mt-0.5 text-royal-800">{order.quantity}</dd>
+                <dd className="mt-0.5 text-royal-800">
+                  {order.quantity}
+                  {order.quantity_reduced > 0 && (
+                    <div className="text-[11px] text-neutral-500">
+                      davon {order.quantity_reduced} ermäßigt
+                    </div>
+                  )}
+                </dd>
               </div>
               <div className="rounded-xl border border-royal-700/10 bg-cream-50 px-4 py-3">
                 <dt className="text-[10px] uppercase tracking-wider text-gold-600">Betrag</dt>

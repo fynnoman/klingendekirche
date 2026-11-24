@@ -43,6 +43,19 @@ function normalize(body: Record<string, unknown>): EventInput | { error: string 
   if (!Number.isFinite(capacity) || capacity < 0 || capacity > 10_000)
     return { error: "invalid_capacity" };
 
+  let price_reduced_cents: number | null = null;
+  if (
+    body.price_reduced_cents !== undefined &&
+    body.price_reduced_cents !== null &&
+    body.price_reduced_cents !== ""
+  ) {
+    const reduced = Number(body.price_reduced_cents);
+    if (!Number.isFinite(reduced) || reduced < 0 || reduced > 1_000_000) {
+      return { error: "invalid_price_reduced" };
+    }
+    price_reduced_cents = reduced > 0 ? Math.round(reduced) : null;
+  }
+
   return {
     title_de,
     title_en: typeof body.title_en === "string" ? body.title_en.trim() || null : null,
@@ -64,6 +77,7 @@ function normalize(body: Record<string, unknown>): EventInput | { error: string 
     image_url:
       typeof body.image_url === "string" ? body.image_url.trim() || null : null,
     price_cents: Math.round(price),
+    price_reduced_cents,
     capacity: Math.round(capacity),
     sale_active: Boolean(body.sale_active),
     highlight: Boolean(body.highlight),
@@ -109,9 +123,13 @@ export async function POST(req: Request) {
   const created = await insertEvent(id, normalized);
 
   try {
-    const { productId, priceId } = await syncEventToStripe(created);
-    if (productId !== created.stripe_product_id || priceId !== created.stripe_price_id) {
-      await setEventStripeIds(created.id, productId, priceId);
+    const { productId, priceId, priceReducedId } = await syncEventToStripe(created);
+    if (
+      productId !== created.stripe_product_id ||
+      priceId !== created.stripe_price_id ||
+      priceReducedId !== created.stripe_price_reduced_id
+    ) {
+      await setEventStripeIds(created.id, productId, priceId, priceReducedId);
     }
   } catch (err) {
     console.error("[admin/events] stripe sync on create failed", err);
@@ -157,12 +175,13 @@ export async function PATCH(req: Request) {
   }
 
   try {
-    const { productId, priceId } = await syncEventToStripe(updated);
+    const { productId, priceId, priceReducedId } = await syncEventToStripe(updated);
     if (
       productId !== updated.stripe_product_id ||
-      priceId !== updated.stripe_price_id
+      priceId !== updated.stripe_price_id ||
+      priceReducedId !== updated.stripe_price_reduced_id
     ) {
-      await setEventStripeIds(updated.id, productId, priceId);
+      await setEventStripeIds(updated.id, productId, priceId, priceReducedId);
     }
   } catch (err) {
     console.error("[admin/events] stripe sync on update failed", err);

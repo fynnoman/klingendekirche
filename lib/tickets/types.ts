@@ -20,6 +20,7 @@ export type EventRow = {
   category: EventCategory;
   image_url: string | null;
   price_cents: number;
+  price_reduced_cents: number | null;
   capacity: number;
   seats_sold: number;
   sale_active: boolean;
@@ -27,6 +28,7 @@ export type EventRow = {
   archived: boolean;
   stripe_product_id: string | null;
   stripe_price_id: string | null;
+  stripe_price_reduced_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -46,6 +48,7 @@ export type EventInput = {
   category: EventCategory;
   image_url?: string | null;
   price_cents: number;
+  price_reduced_cents?: number | null;
   capacity: number;
   sale_active: boolean;
   highlight: boolean;
@@ -67,6 +70,7 @@ export type OrderRow = {
   buyer_name: string;
   buyer_email: string;
   quantity: number;
+  quantity_reduced: number;
   amount_cents: number;
   currency: string;
   status: OrderStatus;

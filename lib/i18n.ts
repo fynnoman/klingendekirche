@@ -43,7 +43,7 @@ export const UI: Record<string, TR> = {
   "footer.imprint": { de: "Impressum", en: "Imprint" },
   "footer.privacy": { de: "Datenschutz", en: "Privacy" },
   "footer.disclaimer": { de: "Disclaimer", en: "Disclaimer" },
-  "footer.admin": { de: "Verwaltung", en: "Admin" },
+  "footer.admin": { de: "Login", en: "Login" },
   "footer.about": {
     de: "Der Förderverein pflegt seit 1993 die MAYER-Orgel der Lisdorfer Pfarrkirche und gestaltet ein kirchenmusikalisches Programm, das weit über das Saarland hinauswirkt.",
     en: "Since 1993 the association has cared for the MAYER organ of the Lisdorf parish church and curates a sacred music programme that reaches far beyond the Saarland."

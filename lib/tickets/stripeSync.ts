@@ -2,16 +2,21 @@ import { stripe } from "@/lib/stripe";
 import type { EventRow } from "./types";
 
 /**
- * Hält Stripe Product + Price pro Konzert synchron. Ein Preis in Stripe ist
- * unveränderbar, Preisänderungen → neuer Price + alter wird archiviert.
+ * Hält Stripe Product + Prices (regulär und optional ermäßigt) pro Konzert
+ * synchron. Ein Preis in Stripe ist unveränderbar, Preisänderungen → neuer
+ * Price + alter wird archiviert.
  *
  * Aufgerufen aus dem Admin-CRUD immer nach dem DB-Schreib und bekommt die
- * frisch gespeicherte Event-Zeile. Gibt { productId, priceId } zurück, die
- * dann via setEventStripeIds in der DB verankert werden.
+ * frisch gespeicherte Event-Zeile. Gibt die Stripe-IDs zurück, die dann via
+ * setEventStripeIds in der DB verankert werden.
  */
 export async function syncEventToStripe(
   event: EventRow
-): Promise<{ productId: string | null; priceId: string | null }> {
+): Promise<{
+  productId: string | null;
+  priceId: string | null;
+  priceReducedId: string | null;
+}> {
   const hasPricing = event.price_cents > 0 && !event.archived;
 
   // Fall 1: Event hat keinen Verkauf und soll archiviert werden
@@ -25,7 +30,11 @@ export async function syncEventToStripe(
         console.warn("[stripeSync] archive product failed", err);
       }
     }
-    return { productId: event.stripe_product_id, priceId: null };
+    return {
+      productId: event.stripe_product_id,
+      priceId: null,
+      priceReducedId: null
+    };
   }
 
   const name = `Konzertkarte: ${event.title_de}`;
@@ -52,7 +61,8 @@ export async function syncEventToStripe(
       typeof product.default_price === "string"
         ? product.default_price
         : (product.default_price?.id ?? null);
-    return { productId, priceId };
+    const priceReducedId = await ensureReducedPrice(productId, null, event);
+    return { productId, priceId, priceReducedId };
   }
 
   // Fall 3: Product existiert → Metadaten aktualisieren
@@ -68,49 +78,92 @@ export async function syncEventToStripe(
     console.warn("[stripeSync] update product failed", err);
   }
 
-  // Preisänderung? Dann neuen Price anlegen und alten archivieren.
-  let priceId = event.stripe_price_id;
-  if (priceId) {
+  const priceId = await ensurePrice(
+    productId,
+    event.stripe_price_id,
+    event.price_cents,
+    { setAsDefault: true }
+  );
+  const priceReducedId = await ensureReducedPrice(
+    productId,
+    event.stripe_price_reduced_id,
+    event
+  );
+
+  return { productId, priceId, priceReducedId };
+}
+
+async function ensurePrice(
+  productId: string,
+  existingPriceId: string | null,
+  unitAmount: number,
+  opts: { setAsDefault?: boolean } = {}
+): Promise<string> {
+  if (existingPriceId) {
     try {
-      const currentPrice = await stripe().prices.retrieve(priceId);
+      const currentPrice = await stripe().prices.retrieve(existingPriceId);
       if (
-        currentPrice.unit_amount !== event.price_cents ||
-        currentPrice.currency !== "eur" ||
-        !currentPrice.active
+        currentPrice.unit_amount === unitAmount &&
+        currentPrice.currency === "eur" &&
+        currentPrice.active
       ) {
-        const newPrice = await stripe().prices.create({
-          product: productId,
-          currency: "eur",
-          unit_amount: event.price_cents
-        });
-        await stripe()
-          .prices.update(priceId, { active: false })
-          .catch(() => undefined);
+        return existingPriceId;
+      }
+      const newPrice = await stripe().prices.create({
+        product: productId,
+        currency: "eur",
+        unit_amount: unitAmount
+      });
+      await stripe()
+        .prices.update(existingPriceId, { active: false })
+        .catch(() => undefined);
+      if (opts.setAsDefault) {
         await stripe()
           .products.update(productId, { default_price: newPrice.id })
           .catch(() => undefined);
-        priceId = newPrice.id;
       }
+      return newPrice.id;
     } catch (err) {
       console.warn("[stripeSync] price check failed, creating new price", err);
       const newPrice = await stripe().prices.create({
         product: productId,
         currency: "eur",
-        unit_amount: event.price_cents
+        unit_amount: unitAmount
       });
-      priceId = newPrice.id;
+      if (opts.setAsDefault) {
+        await stripe()
+          .products.update(productId, { default_price: newPrice.id })
+          .catch(() => undefined);
+      }
+      return newPrice.id;
     }
-  } else {
-    const newPrice = await stripe().prices.create({
-      product: productId,
-      currency: "eur",
-      unit_amount: event.price_cents
-    });
+  }
+  const newPrice = await stripe().prices.create({
+    product: productId,
+    currency: "eur",
+    unit_amount: unitAmount
+  });
+  if (opts.setAsDefault) {
     await stripe()
       .products.update(productId, { default_price: newPrice.id })
       .catch(() => undefined);
-    priceId = newPrice.id;
   }
+  return newPrice.id;
+}
 
-  return { productId, priceId };
+async function ensureReducedPrice(
+  productId: string,
+  existingReducedPriceId: string | null,
+  event: EventRow
+): Promise<string | null> {
+  // Kein ermäßigter Preis gesetzt → bestehenden ermäßigten Price archivieren
+  if (!event.price_reduced_cents || event.price_reduced_cents <= 0) {
+    if (existingReducedPriceId) {
+      await stripe()
+        .prices.update(existingReducedPriceId, { active: false })
+        .catch(() => undefined);
+    }
+    return null;
+  }
+  return ensurePrice(productId, existingReducedPriceId, event.price_reduced_cents);
 }

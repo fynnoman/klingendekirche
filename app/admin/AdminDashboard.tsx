@@ -247,7 +247,18 @@ export default function AdminDashboard({
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          {e.price_cents > 0 ? formatEUR(e.price_cents, "de") : "—"}
+                          {e.price_cents > 0 ? (
+                            <>
+                              <div>{formatEUR(e.price_cents, "de")}</div>
+                              {e.price_reduced_cents && e.price_reduced_cents > 0 && (
+                                <div className="text-[11px] text-neutral-500">
+                                  erm. {formatEUR(e.price_reduced_cents, "de")}
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            "—"
+                          )}
                         </td>
                         <td className="px-4 py-3 text-neutral-700">
                           {e.capacity > 0 ? (

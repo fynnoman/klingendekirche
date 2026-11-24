@@ -85,6 +85,7 @@ export default async function TicketBuyPage({
                   <TicketBuyForm
                     eventId={event.id}
                     priceCents={event.price_cents}
+                    priceReducedCents={event.price_reduced_cents}
                     availableSeats={available}
                   />
                 )}
@@ -127,6 +128,12 @@ export default async function TicketBuyPage({
                           </dt>
                           <dd className="text-royal-800">
                             {formatEUR(event.price_cents, "de")}
+                            {event.price_reduced_cents &&
+                              event.price_reduced_cents > 0 && (
+                                <div className="text-[12px] text-neutral-600">
+                                  Ermäßigt {formatEUR(event.price_reduced_cents, "de")}
+                                </div>
+                              )}
                           </dd>
                         </div>
                         <div>
