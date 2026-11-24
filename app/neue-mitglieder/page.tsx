@@ -1,84 +1,81 @@
-"use client";
 import Link from "next/link";
 import PageHero from "@/components/PageHero";
 import FadeIn from "@/components/FadeIn";
-import { NEW_MEMBERS_2026, SITE } from "@/lib/data";
-import { useLang } from "@/components/LanguageProvider";
+import { listMembers } from "@/lib/content/queries";
 
-export default function NeueMitgliederPage() {
-  const { lang } = useLang();
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Neue Mitglieder" };
 
-  const eyebrow =
-    lang === "en"
-      ? `Year 2026 · Total membership ${SITE.members}`
-      : `Jahr 2026 · Mitgliederbestand ${SITE.members}`;
-  const title =
-    lang === "en"
-      ? "With joy we welcome our new members"
-      : "Mit Freude begrüßen wir unsere neuen Mitglieder";
-  const subtitle =
-    lang === "en"
-      ? "Thank you for supporting sacred music in Lisdorf."
-      : "Danke, dass Sie die Kirchenmusik in Lisdorf mittragen.";
-
-  const body: string[] =
-    lang === "en"
-      ? [
-          "Members support the many sacred music activities of the association in one of the most beautiful baroque churches of the Saarland with a monthly contribution of 2.50 € (young people and students pay 0.50 € per month). Their willingness to become members gives us courage to continue caring for good and ambitious music in our Lisdorf church and far beyond.",
-          "On behalf of the board and the members of the association, our heartfelt thanks."
-        ]
-      : [
-          "Die Mitglieder unterstützen mit einem monatlichen Beitrag von 2,50 € (Jugendliche und Studenten zahlen monatlich 0,50 €) die Finanzierung der vielseitigen kirchenmusikalischen Vereinsaktivitäten in einer der schönsten Barockkirchen des Saarlandes. Mit ihrer Bereitschaft, Mitglied zu werden, geben sie uns Mut, weiterhin für eine gute und anspruchsvolle Musik in unserer Lisdorfer Kirche und weit darüber hinaus Sorge zu tragen.",
-          "Im Namen des Vorstandes und der Vereinsmitglieder herzlichen Dank."
-        ];
-
-  const btnJoin = lang === "en" ? "Join us too" : "Auch Mitglied werden";
-  const btnObit = lang === "en" ? "In memoriam" : "Nachruf";
+export default async function NeueMitgliederPage() {
+  const all = await listMembers("new").catch(() => []);
+  // Nach Jahr gruppieren
+  const byYear = new Map<number, string[]>();
+  for (const m of all) {
+    if (!byYear.has(m.year)) byYear.set(m.year, []);
+    byYear.get(m.year)!.push(m.name);
+  }
+  const years = Array.from(byYear.keys()).sort((a, b) => b - a);
+  const latestYear = years[0] ?? new Date().getFullYear();
 
   return (
     <>
-      <PageHero eyebrow={eyebrow} title={title} subtitle={subtitle} />
+      <PageHero
+        eyebrow={`Jahr ${latestYear}`}
+        title="Mit Freude begrüßen wir unsere neuen Mitglieder"
+        subtitle="Danke, dass Sie die Kirchenmusik in Lisdorf mittragen."
+      />
 
       <section className="py-16">
-        <div className="container-rail">
-          <FadeIn>
-            <ul className="divide-y divide-royal-700/10 overflow-hidden rounded-3xl border border-royal-700/10 bg-white shadow-card">
-              {NEW_MEMBERS_2026.map((m) => (
-                <li
-                  key={m}
-                  className="flex items-center gap-4 px-6 py-4 text-[15px] text-royal-800 sm:px-8"
-                >
-                  <span
-                    aria-hidden
-                    className="h-2 w-2 shrink-0 rounded-full bg-gold-400"
-                  />
-                  {m}
-                </li>
-              ))}
-            </ul>
-          </FadeIn>
+        <div className="container-rail space-y-12">
+          {years.length === 0 && (
+            <p className="text-neutral-600">
+              Derzeit sind keine neuen Mitglieder eingetragen.
+            </p>
+          )}
+          {years.map((year) => {
+            const list = byYear.get(year) ?? [];
+            return (
+              <FadeIn key={year}>
+                <div>
+                  <h2 className="headline text-2xl font-medium text-royal-800 sm:text-3xl">
+                    {year}
+                  </h2>
+                  <ul className="mt-4 divide-y divide-royal-700/10 overflow-hidden rounded-3xl border border-royal-700/10 bg-white shadow-card">
+                    {list.map((m, idx) => (
+                      <li
+                        key={`${year}-${idx}-${m}`}
+                        className="flex items-center gap-4 px-6 py-4 text-[15px] text-royal-800 sm:px-8"
+                      >
+                        <span
+                          aria-hidden
+                          className="h-2 w-2 shrink-0 rounded-full bg-gold-400"
+                        />
+                        {m}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </FadeIn>
+            );
+          })}
 
           <FadeIn delay={0.1}>
-            <div className="mt-10 rounded-3xl border border-royal-700/10 bg-cream-100/70 p-8 sm:p-10">
-              {body.map((p, i) => (
-                <p
-                  key={i}
-                  className={
-                    i === 0
-                      ? "text-[15px] leading-relaxed text-neutral-700"
-                      : "mt-4 text-[15px] leading-relaxed text-neutral-700"
-                  }
-                >
-                  {p}
-                </p>
-              ))}
-
+            <div className="rounded-3xl border border-royal-700/10 bg-cream-100/70 p-8 sm:p-10">
+              <p className="text-[15px] leading-relaxed text-neutral-700">
+                Die Mitglieder unterstützen mit einem monatlichen Beitrag von 2,50 €
+                (Jugendliche und Studenten zahlen monatlich 0,50 €) die Finanzierung
+                der vielseitigen kirchenmusikalischen Vereinsaktivitäten in einer
+                der schönsten Barockkirchen des Saarlandes.
+              </p>
+              <p className="mt-4 text-[15px] leading-relaxed text-neutral-700">
+                Im Namen des Vorstandes und der Vereinsmitglieder herzlichen Dank.
+              </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link href="/mitgliedschaft" className="btn-primary">
-                  {btnJoin}
+                  Auch Mitglied werden
                 </Link>
                 <Link href="/nachruf" className="btn-ghost">
-                  {btnObit}
+                  Nachruf
                 </Link>
               </div>
             </div>

@@ -7,8 +7,9 @@ import type { EventRow, OrderRow } from "@/lib/tickets/types";
 import { formatEUR } from "@/lib/tickets/types";
 import EventEditor from "./EventEditor";
 import OrderDetailPanel from "./OrderDetailPanel";
+import ContentHub from "./content/ContentHub";
 
-type Tab = "konzerte" | "bestellungen";
+type Tab = "konzerte" | "bestellungen" | "inhalte";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Offen",
@@ -128,7 +129,8 @@ export default function AdminDashboard({
           <nav className="inline-flex rounded-full border border-royal-700/15 bg-white p-1 text-[13px]">
             {([
               ["konzerte", "Konzerte"],
-              ["bestellungen", "Bestellungen"]
+              ["bestellungen", "Bestellungen"],
+              ["inhalte", "Inhalte"]
             ] as const).map(([key, label]) => (
               <button
                 key={key}
@@ -338,6 +340,12 @@ export default function AdminDashboard({
               </table>
             </div>
           </>
+        )}
+
+        {tab === "inhalte" && (
+          <div className="mt-10">
+            <ContentHub />
+          </div>
         )}
 
         {tab === "bestellungen" && (

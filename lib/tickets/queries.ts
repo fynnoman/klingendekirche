@@ -65,6 +65,20 @@ export async function listUpcomingEvents(): Promise<EventRow[]> {
   return rows.map(mapEventRow);
 }
 
+/**
+ * Für den Archiv-Bereich: alle Konzerte vor heute, auch wenn archiviert.
+ * Jüngste zuerst.
+ */
+export async function listPastEvents(): Promise<EventRow[]> {
+  const q = sql();
+  const rows = (await q`
+    SELECT * FROM events
+    WHERE date < CURRENT_DATE
+    ORDER BY date DESC, time DESC NULLS LAST
+  `) as Row[];
+  return rows.map(mapEventRow);
+}
+
 /** Das nächste Konzert für den Hero. Highlight hat Vorrang. */
 export async function getNextFeaturedEvent(): Promise<EventRow | null> {
   const q = sql();

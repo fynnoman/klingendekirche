@@ -60,7 +60,12 @@ export async function POST(req: Request) {
 
   const ext =
     file.name.includes(".") ? file.name.split(".").pop()!.toLowerCase() : "bin";
-  const key = `events/${Date.now()}-${nanoid(8)}.${ext}`;
+  const folderRaw = form.get("folder");
+  const folder =
+    typeof folderRaw === "string" && /^[a-z0-9_-]{1,32}$/i.test(folderRaw)
+      ? folderRaw
+      : "events";
+  const key = `${folder}/${Date.now()}-${nanoid(8)}.${ext}`;
 
   try {
     const blob = await put(key, file, {

@@ -1,59 +1,73 @@
-"use client";
 import PageHero from "@/components/PageHero";
 import FadeIn from "@/components/FadeIn";
-import { BOARD, SITE } from "@/lib/data";
-import { useLang } from "@/components/LanguageProvider";
-import { l } from "@/lib/i18n";
+import { SITE } from "@/lib/data";
+import { listBoardMembers, getSiteSettings } from "@/lib/content/queries";
+import type { BoardMemberRow, SiteSettings } from "@/lib/content/types";
 
-export default function VorstandPage() {
-  const { lang, t } = useLang();
-  const eyebrow = lang === "en" ? "Volunteer" : "Ehrenamt";
-  const title = lang === "en" ? "The board" : "Der Vorstand";
-  const subtitle =
-    lang === "en"
-      ? "The elected representatives of the association work on a voluntary basis and prepare the programme of the Klingende Kirche."
-      : "Die gewählten Vertreter des Fördervereins arbeiten ehrenamtlich und bereiten das Programm der Klingenden Kirche vor.";
-  const contactHeading =
-    lang === "en" ? "Contact the board" : "Kontakt zum Vorstand";
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Der Vorstand" };
+
+export default async function VorstandPage() {
+  const [board, settings] = await Promise.all([
+    listBoardMembers().catch(() => [] as BoardMemberRow[]),
+    getSiteSettings().catch(() => ({}) as Partial<SiteSettings>)
+  ]);
+
+  const chair = settings.address_chair_de || SITE.address.chair.de;
+  const street = settings.address_street || SITE.address.street;
+  const city = settings.address_city || SITE.address.city;
+  const phone = settings.phone || SITE.phone;
+  const phoneHref = settings.phoneHref || SITE.phoneHref;
+  const email = settings.email || SITE.email;
 
   return (
     <>
-      <PageHero eyebrow={eyebrow} title={title} subtitle={subtitle} />
+      <PageHero
+        eyebrow="Ehrenamt"
+        title="Der Vorstand"
+        subtitle="Die gewählten Vertreter des Fördervereins arbeiten ehrenamtlich und bereiten das Programm der Klingenden Kirche vor."
+      />
 
       <section className="py-16">
         <div className="container-wide">
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {BOARD.map((p, i) => (
-              <FadeIn key={i} delay={(i % 3) * 0.06}>
-                <div className="rounded-2xl border border-royal-700/10 bg-white p-6 shadow-card">
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-gold-600">
-                    {l(p.role, lang)}
+          {board.length === 0 ? (
+            <p className="text-neutral-600">
+              Die Vorstandsliste wird in Kürze veröffentlicht.
+            </p>
+          ) : (
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {board.map((p, i) => (
+                <FadeIn key={p.id} delay={(i % 3) * 0.06}>
+                  <div className="rounded-2xl border border-royal-700/10 bg-white p-6 shadow-card">
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-gold-600">
+                      {p.role_de}
+                    </div>
+                    <div className="headline mt-1 text-xl text-royal-800">
+                      {p.name}
+                    </div>
                   </div>
-                  <div className="headline mt-1 text-xl text-royal-800">{p.name}</div>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
+                </FadeIn>
+              ))}
+            </div>
+          )}
 
           <FadeIn>
             <div className="mt-16 rounded-2xl border border-royal-700/10 bg-cream-100/70 p-8 sm:p-10">
-              <h3 className="headline text-xl text-royal-800">{contactHeading}</h3>
+              <h3 className="headline text-xl text-royal-800">Kontakt zum Vorstand</h3>
               <div className="mt-4 text-sm leading-relaxed text-neutral-700">
-                <div className="font-medium text-royal-800">
-                  {l(SITE.address.chair, lang)}
-                </div>
-                <div>{SITE.address.street}</div>
-                <div>{SITE.address.city}</div>
+                <div className="font-medium text-royal-800">{chair}</div>
+                <div>{street}</div>
+                <div>{city}</div>
                 <div className="mt-3">
-                  {t("header.phone")}:{" "}
-                  <a className="link-underline" href={`tel:${SITE.phoneHref}`}>
-                    {SITE.phone}
+                  Telefon:{" "}
+                  <a className="link-underline" href={`tel:${phoneHref}`}>
+                    {phone}
                   </a>
                 </div>
                 <div>
-                  {t("footer.email_label")}:{" "}
-                  <a className="link-underline" href={`mailto:${SITE.email}`}>
-                    {SITE.email}
+                  E-Mail:{" "}
+                  <a className="link-underline" href={`mailto:${email}`}>
+                    {email}
                   </a>
                 </div>
               </div>
