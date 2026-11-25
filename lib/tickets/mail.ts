@@ -73,10 +73,6 @@ function layout(title: string, bodyHtml: string) {
 </body></html>`;
 }
 
-function reference(order: OrderRow, event: EventMeta) {
-  return `${order.id} · ${event.title}`.slice(0, 140);
-}
-
 /**
  * An den Besteller: Bestellung angenommen, bitte überweisen. Enthält Bankdaten
  * und Verwendungszweck.
@@ -87,6 +83,7 @@ export async function sendOrderReceivedToCustomer(
 ) {
   const r = resend();
   if (!r) return;
+  if (!order.buyer_email) return;
 
   const amount = formatEUR(order.amount_cents, "de");
   const quantityRegular = order.quantity - order.quantity_reduced;
@@ -94,8 +91,6 @@ export async function sendOrderReceivedToCustomer(
     order.quantity_reduced > 0
       ? `${order.quantity} (davon ${quantityRegular} regulär, ${order.quantity_reduced} ermäßigt)`
       : String(order.quantity);
-  const ref = reference(order, event);
-  const holder = SITE.bank.holder.de;
 
   const html = layout(
     "Ihre Bestellung",
@@ -104,9 +99,9 @@ export async function sendOrderReceivedToCustomer(
       Vielen Dank, ${esc(order.buyer_name)}.
     </h1>
     <p style="font-size:15px;line-height:1.6;color:#333;">
-      Wir haben Ihre Bestellung erhalten. Sobald Ihre Überweisung bei uns
-      eingeht, ist Ihr Platz verbindlich reserviert und Ihre Karten werden an
-      der Abendkasse auf Ihren Namen hinterlegt.
+      Wir haben Ihre Bestellung aufgenommen und prüfen nun den Zahlungseingang.
+      Sobald Ihre Überweisung bei uns eingegangen ist, senden wir Ihnen die
+      Karten per Post an die angegebene Adresse.
     </p>
 
     <div style="margin:24px 0;padding:20px 22px;border:1px solid rgba(197,159,74,0.3);background:#FFFEFA;border-radius:10px;">
@@ -121,26 +116,7 @@ export async function sendOrderReceivedToCustomer(
       </table>
     </div>
 
-    <h2 style="font-family:'Instrument Serif',Georgia,serif;font-size:22px;margin:28px 0 10px 0;color:#0A1033;">
-      Bitte überweisen Sie den Betrag an:
-    </h2>
-    <div style="margin:10px 0 0;padding:18px 20px;border:1px solid rgba(20,30,78,0.12);background:#FDFBF6;border-radius:10px;">
-      <table style="width:100%;font-size:14px;color:#222;">
-        <tr><td style="padding:4px 0;color:#777;width:170px;">Kontoinhaber</td><td>${esc(holder)}</td></tr>
-        <tr><td style="padding:4px 0;color:#777;">IBAN</td><td style="font-family:ui-monospace,Menlo,monospace;">${esc(SITE.bank.iban)}</td></tr>
-        <tr><td style="padding:4px 0;color:#777;">BIC</td><td style="font-family:ui-monospace,Menlo,monospace;">${esc(SITE.bank.bic)}</td></tr>
-        <tr><td style="padding:4px 0;color:#777;">Bank</td><td>${esc(SITE.bank.name)}</td></tr>
-        <tr><td style="padding:4px 0;color:#777;">Betrag</td><td style="font-weight:600;">${amount}</td></tr>
-        <tr><td style="padding:4px 0;color:#777;">Verwendungszweck</td><td style="font-family:ui-monospace,Menlo,monospace;">${esc(ref)}</td></tr>
-      </table>
-    </div>
-
-    <p style="font-size:13.5px;line-height:1.6;color:#555;margin-top:18px;">
-      Bitte geben Sie den Verwendungszweck genau so an, damit wir Ihre Zahlung
-      Ihrer Bestellung zuordnen können.
-    </p>
-
-    <p style="font-size:14px;color:#555;line-height:1.6;margin-top:28px;">
+    <p style="font-size:14px;color:#555;line-height:1.6;margin-top:24px;">
       Herzlichen Dank für Ihre Unterstützung.<br>
       Ihr Förderverein Klingende Kirche
     </p>
@@ -155,22 +131,15 @@ export async function sendOrderReceivedToCustomer(
     html,
     text:
       `Vielen Dank, ${order.buyer_name}.\n\n` +
-      `Wir haben Ihre Bestellung erhalten. Bitte überweisen Sie den Betrag ` +
-      `an die unten stehende Bankverbindung. Ihre Karten werden an der ` +
-      `Abendkasse auf Ihren Namen hinterlegt.\n\n` +
+      `Wir haben Ihre Bestellung aufgenommen und prüfen den Zahlungseingang. ` +
+      `Sobald Ihre Überweisung bei uns eingegangen ist, senden wir Ihnen die ` +
+      `Karten per Post zu.\n\n` +
       `Konzert: ${event.title}\n` +
       `Datum: ${event.dateLabel}${event.time ? " · " + event.time : ""}\n` +
       `Ort: ${event.venue}\n` +
       `Anzahl Karten: ${quantityLabel}\n` +
       `Bestellnummer: ${order.id}\n` +
-      `Betrag: ${amount}\n\n` +
-      `Bankverbindung:\n` +
-      `Kontoinhaber: ${holder}\n` +
-      `IBAN: ${SITE.bank.iban}\n` +
-      `BIC: ${SITE.bank.bic}\n` +
-      `Bank: ${SITE.bank.name}\n` +
-      `Betrag: ${amount}\n` +
-      `Verwendungszweck: ${ref}\n`
+      `Betrag: ${amount}\n`
   });
 }
 
@@ -212,11 +181,12 @@ export async function sendOrderReceivedToAdmin(
         <tr><td style="padding:3px 0;color:#777;width:150px;">Konzert</td><td>${esc(event.title)}</td></tr>
         <tr><td style="padding:3px 0;color:#777;">Datum</td><td>${esc(event.dateLabel)}${event.time ? " · " + esc(event.time) : ""}</td></tr>
         <tr><td style="padding:3px 0;color:#777;">Besteller</td><td>${esc(order.buyer_name)}</td></tr>
-        <tr><td style="padding:3px 0;color:#777;">E-Mail</td><td><a href="mailto:${esc(order.buyer_email)}" style="color:#141E4E;">${esc(order.buyer_email)}</a></td></tr>
+        ${order.buyer_street ? `<tr><td style="padding:3px 0;color:#777;">Adresse</td><td>${esc(order.buyer_street)}<br>${esc(order.buyer_postal_code ?? "")} ${esc(order.buyer_city ?? "")}</td></tr>` : ""}
+        ${order.buyer_phone ? `<tr><td style="padding:3px 0;color:#777;">Telefon</td><td><a href="tel:${esc(order.buyer_phone)}" style="color:#141E4E;">${esc(order.buyer_phone)}</a></td></tr>` : ""}
+        ${order.buyer_email ? `<tr><td style="padding:3px 0;color:#777;">E-Mail</td><td><a href="mailto:${esc(order.buyer_email)}" style="color:#141E4E;">${esc(order.buyer_email)}</a></td></tr>` : ""}
         <tr><td style="padding:3px 0;color:#777;">Karten</td><td>${esc(quantityLabel)}</td></tr>
         <tr><td style="padding:3px 0;color:#777;">Betrag</td><td style="font-weight:600;">${amount}</td></tr>
         <tr><td style="padding:3px 0;color:#777;">Bestellnummer</td><td style="font-family:ui-monospace,Menlo,monospace;">${esc(order.id)}</td></tr>
-        <tr><td style="padding:3px 0;color:#777;">Verwendungszweck</td><td style="font-family:ui-monospace,Menlo,monospace;">${esc(reference(order, event))}</td></tr>
       </table>
     </div>
 
@@ -233,21 +203,31 @@ export async function sendOrderReceivedToAdmin(
     `
   );
 
+  const address =
+    [
+      order.buyer_street,
+      [order.buyer_postal_code, order.buyer_city].filter(Boolean).join(" ")
+    ]
+      .filter(Boolean)
+      .join(", ") || "—";
+
   await r.emails.send({
     from: mailFrom(),
     to,
-    replyTo: order.buyer_email,
+    replyTo: order.buyer_email ?? replyTo(),
     subject: `Neue Bestellung · ${event.title} · ${order.buyer_name}`,
     html,
     text:
       `Neue Bestellung eingegangen.\n\n` +
       `Konzert: ${event.title}\n` +
       `Datum: ${event.dateLabel}\n` +
-      `Besteller: ${order.buyer_name} <${order.buyer_email}>\n` +
+      `Besteller: ${order.buyer_name}\n` +
+      `Adresse: ${address}\n` +
+      `Telefon: ${order.buyer_phone ?? "—"}\n` +
+      `E-Mail: ${order.buyer_email ?? "—"}\n` +
       `Karten: ${quantityLabel}\n` +
       `Betrag: ${amount}\n` +
-      `Bestellnummer: ${order.id}\n` +
-      `Verwendungszweck: ${reference(order, event)}\n\n` +
+      `Bestellnummer: ${order.id}\n\n` +
       `Admin: ${adminUrl}\n`
   });
 }
@@ -261,6 +241,7 @@ export async function sendPaymentConfirmedToCustomer(
 ) {
   const r = resend();
   if (!r) return;
+  if (!order.buyer_email) return;
 
   const amount = formatEUR(order.amount_cents, "de");
   const html = layout(
@@ -271,8 +252,7 @@ export async function sendPaymentConfirmedToCustomer(
     </h1>
     <p style="font-size:15px;line-height:1.6;color:#333;">
       Vielen Dank, ${esc(order.buyer_name)}. Ihre Karten für ${esc(event.title)}
-      sind verbindlich reserviert und werden an der Abendkasse auf Ihren Namen
-      hinterlegt.
+      sind verbindlich reserviert und werden Ihnen in Kürze per Post zugesandt.
     </p>
 
     <div style="margin:22px 0;padding:18px 20px;border:1px solid rgba(197,159,74,0.3);background:#FFFEFA;border-radius:10px;">
@@ -301,6 +281,7 @@ export async function sendPaymentConfirmedToCustomer(
     html,
     text:
       `Wir haben Ihre Zahlung erhalten.\n\n` +
+      `Ihre Karten werden Ihnen in Kürze per Post zugesandt.\n\n` +
       `Konzert: ${event.title}\n` +
       `Datum: ${event.dateLabel}${event.time ? " · " + event.time : ""}\n` +
       `Ort: ${event.venue}\n` +
@@ -319,6 +300,7 @@ export async function sendOrderCancelledToCustomer(
 ) {
   const r = resend();
   if (!r) return;
+  if (!order.buyer_email) return;
 
   const html = layout(
     "Bestellung abgesagt",

@@ -35,7 +35,13 @@ export default function OrderDetailPanel({
 }) {
   const [order, setOrder] = useState(initialOrder);
   const [buyerName, setBuyerName] = useState(initialOrder.buyer_name);
-  const [buyerEmail, setBuyerEmail] = useState(initialOrder.buyer_email);
+  const [buyerEmail, setBuyerEmail] = useState(initialOrder.buyer_email ?? "");
+  const [buyerStreet, setBuyerStreet] = useState(initialOrder.buyer_street ?? "");
+  const [buyerPostalCode, setBuyerPostalCode] = useState(
+    initialOrder.buyer_postal_code ?? ""
+  );
+  const [buyerCity, setBuyerCity] = useState(initialOrder.buyer_city ?? "");
+  const [buyerPhone, setBuyerPhone] = useState(initialOrder.buyer_phone ?? "");
   const [note, setNote] = useState(initialOrder.note ?? "");
   const [savingBuyer, setSavingBuyer] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
@@ -70,7 +76,14 @@ export default function OrderDetailPanel({
     setSavingBuyer(true);
     setFb({ kind: "idle" });
     try {
-      await patch({ buyer_name: buyerName, buyer_email: buyerEmail });
+      await patch({
+        buyer_name: buyerName,
+        buyer_email: buyerEmail,
+        buyer_street: buyerStreet,
+        buyer_postal_code: buyerPostalCode,
+        buyer_city: buyerCity,
+        buyer_phone: buyerPhone
+      });
       setFb({ kind: "success", text: "Besteller-Daten gespeichert." });
     } catch (err) {
       setFb({
@@ -84,6 +97,14 @@ export default function OrderDetailPanel({
       setSavingBuyer(false);
     }
   }
+
+  const buyerDirty =
+    buyerName !== order.buyer_name ||
+    buyerEmail !== (order.buyer_email ?? "") ||
+    buyerStreet !== (order.buyer_street ?? "") ||
+    buyerPostalCode !== (order.buyer_postal_code ?? "") ||
+    buyerCity !== (order.buyer_city ?? "") ||
+    buyerPhone !== (order.buyer_phone ?? "");
 
   async function saveNote() {
     setSavingNote(true);
@@ -204,7 +225,46 @@ export default function OrderDetailPanel({
               />
             </label>
             <label className="grid gap-1.5">
-              <span className="text-[12px] font-medium text-neutral-700">E-Mail</span>
+              <span className="text-[12px] font-medium text-neutral-700">
+                Straße und Hausnummer
+              </span>
+              <input
+                value={buyerStreet}
+                onChange={(e) => setBuyerStreet(e.target.value)}
+                className="rounded-xl border border-royal-700/15 bg-white px-4 py-2 text-[14px] outline-none focus:border-gold-400"
+              />
+            </label>
+            <div className="grid gap-3 sm:grid-cols-[120px_1fr]">
+              <label className="grid gap-1.5">
+                <span className="text-[12px] font-medium text-neutral-700">PLZ</span>
+                <input
+                  value={buyerPostalCode}
+                  onChange={(e) => setBuyerPostalCode(e.target.value)}
+                  className="rounded-xl border border-royal-700/15 bg-white px-4 py-2 text-[14px] outline-none focus:border-gold-400"
+                />
+              </label>
+              <label className="grid gap-1.5">
+                <span className="text-[12px] font-medium text-neutral-700">Ort</span>
+                <input
+                  value={buyerCity}
+                  onChange={(e) => setBuyerCity(e.target.value)}
+                  className="rounded-xl border border-royal-700/15 bg-white px-4 py-2 text-[14px] outline-none focus:border-gold-400"
+                />
+              </label>
+            </div>
+            <label className="grid gap-1.5">
+              <span className="text-[12px] font-medium text-neutral-700">Telefon</span>
+              <input
+                type="tel"
+                value={buyerPhone}
+                onChange={(e) => setBuyerPhone(e.target.value)}
+                className="rounded-xl border border-royal-700/15 bg-white px-4 py-2 text-[14px] outline-none focus:border-gold-400"
+              />
+            </label>
+            <label className="grid gap-1.5">
+              <span className="text-[12px] font-medium text-neutral-700">
+                E-Mail (optional)
+              </span>
               <input
                 type="email"
                 value={buyerEmail}
@@ -216,10 +276,7 @@ export default function OrderDetailPanel({
               <button
                 type="button"
                 onClick={saveBuyer}
-                disabled={
-                  savingBuyer ||
-                  (buyerName === order.buyer_name && buyerEmail === order.buyer_email)
-                }
+                disabled={savingBuyer || !buyerDirty}
                 className="rounded-full border border-royal-700/15 bg-white px-4 py-2 text-[12px] font-semibold text-royal-800 transition hover:border-gold-300 disabled:opacity-50"
               >
                 {savingBuyer ? "Speichert …" : "Besteller speichern"}
@@ -268,15 +325,17 @@ export default function OrderDetailPanel({
                 onClick={resendMail}
                 disabled={
                   sendingMail ||
+                  !order.buyer_email ||
                   (order.status !== "paid" && order.status !== "pending")
                 }
+                title={!order.buyer_email ? "Kein E-Mail-Adresse hinterlegt" : undefined}
                 className="rounded-full bg-royal-800 px-5 py-2 text-[13px] font-semibold text-cream-50 transition hover:bg-royal-700 disabled:opacity-50"
               >
                 {sendingMail
                   ? "Sendet …"
                   : order.status === "paid"
                     ? "Zahlungsbestätigung erneut senden"
-                    : "Überweisungsinfo erneut senden"}
+                    : "Bestätigung erneut senden"}
               </button>
               {(order.status === "paid" || order.status === "pending") && (
                 <button

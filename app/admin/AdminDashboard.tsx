@@ -402,8 +402,22 @@ export default function AdminDashboard({
                         </td>
                         <td className="px-4 py-3">
                           {o.buyer_name}
+                          {(o.buyer_street || o.buyer_city) && (
+                            <div className="text-[11px] text-neutral-500">
+                              {[
+                                o.buyer_street,
+                                [o.buyer_postal_code, o.buyer_city]
+                                  .filter(Boolean)
+                                  .join(" ")
+                              ]
+                                .filter(Boolean)
+                                .join(", ")}
+                            </div>
+                          )}
                           <div className="text-[11px] text-neutral-500">
-                            {o.buyer_email}
+                            {o.buyer_phone ?? ""}
+                            {o.buyer_phone && o.buyer_email ? " · " : ""}
+                            {o.buyer_email ?? ""}
                           </div>
                         </td>
                         <td className="px-4 py-3">{o.quantity}</td>

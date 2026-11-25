@@ -68,7 +68,11 @@ export type OrderRow = {
   token: string;
   event_id: string;
   buyer_name: string;
-  buyer_email: string;
+  buyer_email: string | null;
+  buyer_street: string | null;
+  buyer_postal_code: string | null;
+  buyer_city: string | null;
+  buyer_phone: string | null;
   quantity: number;
   quantity_reduced: number;
   amount_cents: number;

@@ -17,6 +17,10 @@ export const dynamic = "force-dynamic";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+function str(value: unknown, max = 200): string {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
 export async function POST(req: Request) {
   let body: Record<string, unknown>;
   try {
@@ -25,11 +29,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "invalid_json" }, { status: 400 });
   }
 
-  const eventId = typeof body.eventId === "string" ? body.eventId.trim() : "";
-  const buyerName =
-    typeof body.name === "string" ? body.name.trim().slice(0, 200) : "";
-  const buyerEmail =
+  const eventId = str(body.eventId, 120);
+  const firstName = str(body.firstName, 120);
+  const lastName = str(body.lastName, 120);
+  const street = str(body.street, 200);
+  const postalCode = str(body.postalCode, 20);
+  const city = str(body.city, 120);
+  const phone = str(body.phone, 60);
+
+  const rawEmail =
     typeof body.email === "string" ? body.email.trim().slice(0, 200) : "";
+  const buyerEmail = rawEmail ? rawEmail : null;
 
   const quantityRaw = Number.isFinite(body.quantity as number)
     ? Math.max(0, Math.min(10, Math.floor(body.quantity as number)))
@@ -45,7 +55,19 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "invalid_fields" }, { status: 400 });
   }
 
-  if (!eventId || !buyerName || !buyerEmail || !EMAIL_RE.test(buyerEmail)) {
+  if (
+    !eventId ||
+    !firstName ||
+    !lastName ||
+    !street ||
+    !postalCode ||
+    !city ||
+    !phone
+  ) {
+    return NextResponse.json({ ok: false, error: "invalid_fields" }, { status: 400 });
+  }
+
+  if (buyerEmail && !EMAIL_RE.test(buyerEmail)) {
     return NextResponse.json({ ok: false, error: "invalid_fields" }, { status: 400 });
   }
 
@@ -91,6 +113,7 @@ export async function POST(req: Request) {
     quantityReduced * (event.price_reduced_cents ?? 0);
   const orderId = `KK-${Date.now().toString(36).toUpperCase()}-${nanoid(5).toUpperCase()}`;
   const token = nanoid(32);
+  const buyerName = `${firstName} ${lastName}`.trim();
 
   try {
     await insertOrder({
@@ -99,6 +122,10 @@ export async function POST(req: Request) {
       eventId,
       buyerName,
       buyerEmail,
+      buyerStreet: street,
+      buyerPostalCode: postalCode,
+      buyerCity: city,
+      buyerPhone: phone,
       quantity: totalQuantity,
       quantityReduced,
       amountCents,
@@ -120,6 +147,10 @@ export async function POST(req: Request) {
     event_id: eventId,
     buyer_name: buyerName,
     buyer_email: buyerEmail,
+    buyer_street: street,
+    buyer_postal_code: postalCode,
+    buyer_city: city,
+    buyer_phone: phone,
     quantity: totalQuantity,
     quantity_reduced: quantityReduced,
     amount_cents: amountCents,
@@ -143,14 +174,19 @@ export async function POST(req: Request) {
     venue: event.venue_de
   };
 
-  await Promise.all([
-    sendOrderReceivedToCustomer(createdOrder, eventMeta).catch((err) =>
-      console.error("[checkout] customer mail failed", err)
-    ),
+  const mailTasks: Promise<unknown>[] = [
     sendOrderReceivedToAdmin(createdOrder, eventMeta).catch((err) =>
       console.error("[checkout] admin mail failed", err)
     )
-  ]);
+  ];
+  if (buyerEmail) {
+    mailTasks.push(
+      sendOrderReceivedToCustomer(createdOrder, eventMeta).catch((err) =>
+        console.error("[checkout] customer mail failed", err)
+      )
+    );
+  }
+  await Promise.all(mailTasks);
 
   return NextResponse.json({
     ok: true,

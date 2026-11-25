@@ -217,7 +217,11 @@ export async function insertOrder(order: {
   token: string;
   eventId: string;
   buyerName: string;
-  buyerEmail: string;
+  buyerEmail: string | null;
+  buyerStreet: string | null;
+  buyerPostalCode: string | null;
+  buyerCity: string | null;
+  buyerPhone: string | null;
   quantity: number;
   quantityReduced?: number;
   amountCents: number;
@@ -228,10 +232,15 @@ export async function insertOrder(order: {
   const q = sql();
   await q`
     INSERT INTO orders (
-      id, token, event_id, buyer_name, buyer_email, quantity, quantity_reduced,
+      id, token, event_id, buyer_name, buyer_email,
+      buyer_street, buyer_postal_code, buyer_city, buyer_phone,
+      quantity, quantity_reduced,
       amount_cents, currency, status, stripe_session_id
     ) VALUES (
-      ${order.id}, ${order.token}, ${order.eventId}, ${order.buyerName}, ${order.buyerEmail}, ${order.quantity}, ${order.quantityReduced ?? 0},
+      ${order.id}, ${order.token}, ${order.eventId},
+      ${order.buyerName}, ${order.buyerEmail},
+      ${order.buyerStreet}, ${order.buyerPostalCode}, ${order.buyerCity}, ${order.buyerPhone},
+      ${order.quantity}, ${order.quantityReduced ?? 0},
       ${order.amountCents}, ${order.currency ?? "eur"}, ${order.status}, ${order.stripeSessionId ?? null}
     )
   `;
@@ -334,13 +343,21 @@ export async function listPaidOrdersForEvent(eventId: string): Promise<OrderRow[
 export async function updateOrderBuyer(input: {
   orderId: string;
   buyerName: string;
-  buyerEmail: string;
+  buyerEmail: string | null;
+  buyerStreet?: string | null;
+  buyerPostalCode?: string | null;
+  buyerCity?: string | null;
+  buyerPhone?: string | null;
 }): Promise<OrderRow | null> {
   const q = sql();
   const rows = (await q`
     UPDATE orders
     SET buyer_name = ${input.buyerName},
-        buyer_email = ${input.buyerEmail}
+        buyer_email = ${input.buyerEmail},
+        buyer_street = COALESCE(${input.buyerStreet ?? null}, buyer_street),
+        buyer_postal_code = COALESCE(${input.buyerPostalCode ?? null}, buyer_postal_code),
+        buyer_city = COALESCE(${input.buyerCity ?? null}, buyer_city),
+        buyer_phone = COALESCE(${input.buyerPhone ?? null}, buyer_phone)
     WHERE id = ${input.orderId}
     RETURNING *
   `) as Row[];

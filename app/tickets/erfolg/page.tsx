@@ -2,7 +2,6 @@ import Link from "next/link";
 import PageHero from "@/components/PageHero";
 import { getEventById, getOrderByToken } from "@/lib/tickets/queries";
 import { formatEUR, formatEventDate } from "@/lib/tickets/types";
-import { SITE } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Vielen Dank" };
@@ -19,16 +18,12 @@ export default async function TicketSuccessPage({
     ? await getEventById(order.event_id).catch(() => null)
     : null;
 
-  const reference = order && event
-    ? `${order.id} · ${event.title_de}`.slice(0, 140)
-    : order?.id ?? "";
-
   return (
     <>
       <PageHero
         eyebrow="Bestellung aufgenommen"
         title="Vielen Dank."
-        subtitle="Wir haben Ihre Bestellung erhalten. Mit dem Zahlungseingang ist Ihr Platz verbindlich reserviert."
+        subtitle="Wir haben Ihre Bestellung erhalten und prüfen nun den Zahlungseingang."
       />
 
       <section className="py-14">
@@ -36,9 +31,9 @@ export default async function TicketSuccessPage({
           <div className="rounded-3xl border border-royal-700/10 bg-white p-8 shadow-plate sm:p-10">
             {!order ? (
               <p className="text-[15px] leading-relaxed text-neutral-700">
-                Wir konnten Ihre Bestellung nicht öffnen. Prüfen Sie bitte Ihr
-                E-Mail-Postfach, dort finden Sie die vollständige Bestätigung
-                mit allen Angaben zur Überweisung.
+                Ihre Bestellung wurde entgegengenommen. Wir prüfen den
+                Zahlungseingang und senden Ihnen die Karten anschließend per
+                Post zu.
               </p>
             ) : (
               <>
@@ -97,46 +92,25 @@ export default async function TicketSuccessPage({
                   </div>
                 </dl>
 
-                <div className="mt-10 rounded-2xl border border-royal-700/10 bg-cream-100/70 p-6 sm:p-8">
-                  <div className="text-[11px] uppercase tracking-[0.22em] text-gold-600">
-                    Bitte überweisen Sie den Betrag an:
-                  </div>
-                  <dl className="mt-4 grid gap-3 text-[14px] text-neutral-800 sm:grid-cols-[180px_1fr]">
-                    <dt className="text-neutral-500">Kontoinhaber</dt>
-                    <dd>{SITE.bank.holder.de}</dd>
-
-                    <dt className="text-neutral-500">IBAN</dt>
-                    <dd className="font-mono tracking-wide">{SITE.bank.iban}</dd>
-
-                    <dt className="text-neutral-500">BIC</dt>
-                    <dd className="font-mono">{SITE.bank.bic}</dd>
-
-                    <dt className="text-neutral-500">Bank</dt>
-                    <dd>{SITE.bank.name}</dd>
-
-                    <dt className="text-neutral-500">Betrag</dt>
-                    <dd className="font-medium">
-                      {formatEUR(order.amount_cents, "de")}
-                    </dd>
-
-                    <dt className="text-neutral-500">Verwendungszweck</dt>
-                    <dd className="font-mono text-[13px]">{reference}</dd>
-                  </dl>
-                  <p className="mt-5 text-[13px] leading-relaxed text-neutral-600">
-                    Bitte geben Sie den Verwendungszweck genau so an, damit wir
-                    Ihre Zahlung Ihrer Bestellung zuordnen können. Ihre Karten
-                    liegen am Konzertabend an der Abendkasse auf Ihren Namen
-                    bereit.
-                  </p>
-                </div>
-
-                <p className="mt-8 text-[14px] leading-relaxed text-neutral-700">
-                  Eine Bestätigung mit allen Angaben wurde zusätzlich an{" "}
+                <p className="mt-8 text-[14.5px] leading-relaxed text-neutral-700">
+                  Sobald Ihre Überweisung bei uns eingegangen ist, senden wir
+                  Ihnen die Karten per Post an{" "}
                   <span className="font-medium text-royal-800">
-                    {order.buyer_email}
-                  </span>{" "}
-                  verschickt.
+                    {order.buyer_street}, {order.buyer_postal_code}{" "}
+                    {order.buyer_city}
+                  </span>
+                  .
                 </p>
+
+                {order.buyer_email && (
+                  <p className="mt-3 text-[13.5px] leading-relaxed text-neutral-600">
+                    Eine Bestätigung wurde an{" "}
+                    <span className="font-medium text-royal-800">
+                      {order.buyer_email}
+                    </span>{" "}
+                    verschickt.
+                  </p>
+                )}
 
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link href="/termine" className="btn-ghost">

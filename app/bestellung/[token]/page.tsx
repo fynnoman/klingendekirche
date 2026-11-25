@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import PageHero from "@/components/PageHero";
 import { getEventById, getOrderByToken } from "@/lib/tickets/queries";
 import { formatEUR, formatEventDate } from "@/lib/tickets/types";
-import { SITE } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Ihre Bestellung" };
@@ -28,8 +27,6 @@ export default async function OrderPortalPage({
   const event = await getEventById(order.event_id).catch(() => null);
   const isPending = order.status === "pending";
   const isPaid = order.status === "paid";
-  const reference =
-    event ? `${order.id} · ${event.title_de}`.slice(0, 140) : order.id;
 
   return (
     <>
@@ -38,9 +35,9 @@ export default async function OrderPortalPage({
         title="Ihre Bestellung"
         subtitle={
           isPending
-            ? "Mit dem Zahlungseingang ist Ihr Platz verbindlich reserviert."
+            ? "Mit dem Zahlungseingang ist Ihr Platz verbindlich reserviert. Die Karten versenden wir anschließend per Post."
             : isPaid
-              ? "Ihre Zahlung ist bei uns eingegangen. Die Karten liegen an der Abendkasse auf Ihren Namen bereit."
+              ? "Ihre Zahlung ist bei uns eingegangen. Die Karten sind auf dem Weg zu Ihnen."
               : "Übersicht Ihrer Bestellung."
         }
       />
@@ -122,8 +119,23 @@ export default async function OrderPortalPage({
                 </dt>
                 <dd className="mt-1 text-sm text-royal-800">
                   {order.buyer_name}
-                  <br />
-                  <span className="text-neutral-500">{order.buyer_email}</span>
+                  {order.buyer_street && (
+                    <>
+                      <br />
+                      <span className="text-neutral-500">
+                        {order.buyer_street}, {order.buyer_postal_code}{" "}
+                        {order.buyer_city}
+                      </span>
+                    </>
+                  )}
+                  {order.buyer_email && (
+                    <>
+                      <br />
+                      <span className="text-neutral-500">
+                        {order.buyer_email}
+                      </span>
+                    </>
+                  )}
                 </dd>
               </div>
               <div className="bg-white px-5 py-4">
@@ -137,36 +149,11 @@ export default async function OrderPortalPage({
             </dl>
 
             {isPending && (
-              <div className="mt-10 rounded-2xl border border-royal-700/10 bg-cream-100/70 p-6 sm:p-8">
-                <div className="text-[11px] uppercase tracking-[0.22em] text-gold-600">
-                  Bitte überweisen Sie den Betrag an:
-                </div>
-                <dl className="mt-4 grid gap-3 text-[14px] text-neutral-800 sm:grid-cols-[180px_1fr]">
-                  <dt className="text-neutral-500">Kontoinhaber</dt>
-                  <dd>{SITE.bank.holder.de}</dd>
-
-                  <dt className="text-neutral-500">IBAN</dt>
-                  <dd className="font-mono tracking-wide">{SITE.bank.iban}</dd>
-
-                  <dt className="text-neutral-500">BIC</dt>
-                  <dd className="font-mono">{SITE.bank.bic}</dd>
-
-                  <dt className="text-neutral-500">Bank</dt>
-                  <dd>{SITE.bank.name}</dd>
-
-                  <dt className="text-neutral-500">Betrag</dt>
-                  <dd className="font-medium">
-                    {formatEUR(order.amount_cents, "de")}
-                  </dd>
-
-                  <dt className="text-neutral-500">Verwendungszweck</dt>
-                  <dd className="font-mono text-[13px]">{reference}</dd>
-                </dl>
-                <p className="mt-5 text-[13px] leading-relaxed text-neutral-600">
-                  Bitte geben Sie den Verwendungszweck genau so an, damit wir
-                  Ihre Zahlung Ihrer Bestellung zuordnen können.
-                </p>
-              </div>
+              <p className="mt-8 text-[14px] leading-relaxed text-neutral-700">
+                Ihre Bestellung ist erfasst. Sobald der Zahlungseingang bei uns
+                verbucht wurde, versenden wir die Karten per Post an die
+                angegebene Adresse.
+              </p>
             )}
           </div>
         </div>

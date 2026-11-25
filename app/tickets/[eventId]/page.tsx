@@ -84,6 +84,7 @@ export default async function TicketBuyPage({
                 ) : (
                   <TicketBuyForm
                     eventId={event.id}
+                    eventTitle={event.title_de}
                     priceCents={event.price_cents}
                     priceReducedCents={event.price_reduced_cents}
                     availableSeats={available}

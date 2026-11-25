@@ -23,7 +23,7 @@ export default function EinlassView({
       if (!q) return true;
       return (
         o.buyer_name.toLowerCase().includes(q) ||
-        o.buyer_email.toLowerCase().includes(q) ||
+        (o.buyer_email?.toLowerCase().includes(q) ?? false) ||
         o.id.toLowerCase().includes(q)
       );
     });
