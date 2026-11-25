@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import type { OrderRow } from "./types";
 import { formatEUR } from "./types";
+import { SITE } from "@/lib/data";
 
 type EventMeta = {
   title: string;
@@ -9,7 +10,8 @@ type EventMeta = {
   venue: string;
 };
 
-const SITE_URL = () => process.env.NEXT_PUBLIC_SITE_URL ?? "https://klingende-kirche.de";
+const SITE_URL = () =>
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://klingende-kirche.de";
 
 function resend(): Resend | null {
   const key = process.env.RESEND_API_KEY;
@@ -28,7 +30,14 @@ function mailFrom() {
 }
 
 function replyTo() {
-  return process.env.MAIL_REPLY_TO ?? "info@klingende-kirche.de";
+  return process.env.MAIL_REPLY_TO ?? SITE.email;
+}
+
+function adminRecipient(): string | null {
+  const to = process.env.ORDER_NOTIFICATION_EMAIL?.trim();
+  if (to) return to;
+  const fallback = process.env.MAIL_REPLY_TO?.trim() ?? SITE.email;
+  return fallback || null;
 }
 
 function esc(s: string) {
@@ -64,29 +73,40 @@ function layout(title: string, bodyHtml: string) {
 </body></html>`;
 }
 
-export async function sendTicketConfirmation(
+function reference(order: OrderRow, event: EventMeta) {
+  return `${order.id} · ${event.title}`.slice(0, 140);
+}
+
+/**
+ * An den Besteller: Bestellung angenommen, bitte überweisen. Enthält Bankdaten
+ * und Verwendungszweck.
+ */
+export async function sendOrderReceivedToCustomer(
   order: OrderRow,
   event: EventMeta
 ) {
   const r = resend();
   if (!r) return;
 
-  const portalUrl = `${SITE_URL()}/bestellung/${order.token}`;
   const amount = formatEUR(order.amount_cents, "de");
   const quantityRegular = order.quantity - order.quantity_reduced;
   const quantityLabel =
     order.quantity_reduced > 0
       ? `${order.quantity} (davon ${quantityRegular} regulär, ${order.quantity_reduced} ermäßigt)`
       : String(order.quantity);
+  const ref = reference(order, event);
+  const holder = SITE.bank.holder.de;
 
   const html = layout(
-    "Ihre Tickets",
+    "Ihre Bestellung",
     `
     <h1 style="font-family:'Instrument Serif',Georgia,serif;font-size:32px;margin:0 0 8px 0;color:#0A1033;">
       Vielen Dank, ${esc(order.buyer_name)}.
     </h1>
     <p style="font-size:15px;line-height:1.6;color:#333;">
-      Ihre Bestellung ist bestätigt. Die Karten gelten als Einlass und werden an der Abendkasse auf Ihren Namen hinterlegt.
+      Wir haben Ihre Bestellung erhalten. Sobald Ihre Überweisung bei uns
+      eingeht, ist Ihr Platz verbindlich reserviert und Ihre Karten werden an
+      der Abendkasse auf Ihren Namen hinterlegt.
     </p>
 
     <div style="margin:24px 0;padding:20px 22px;border:1px solid rgba(197,159,74,0.3);background:#FFFEFA;border-radius:10px;">
@@ -101,21 +121,27 @@ export async function sendTicketConfirmation(
       </table>
     </div>
 
-    <p style="font-size:15px;line-height:1.6;color:#333;">
-      Ihre Bestellung einsehen oder stornieren:
-    </p>
-    <p style="margin:12px 0 0;">
-      <a href="${portalUrl}" style="display:inline-block;background:#0A1033;color:#fff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:500;">
-        Bestellung öffnen
-      </a>
-    </p>
-    <p style="font-size:13px;color:#777;margin-top:10px;">
-      Oder kopieren Sie diesen Link:<br>
-      <span style="font-family:ui-monospace,Menlo,monospace;color:#444;word-break:break-all;">${esc(portalUrl)}</span>
+    <h2 style="font-family:'Instrument Serif',Georgia,serif;font-size:22px;margin:28px 0 10px 0;color:#0A1033;">
+      Bitte überweisen Sie den Betrag an:
+    </h2>
+    <div style="margin:10px 0 0;padding:18px 20px;border:1px solid rgba(20,30,78,0.12);background:#FDFBF6;border-radius:10px;">
+      <table style="width:100%;font-size:14px;color:#222;">
+        <tr><td style="padding:4px 0;color:#777;width:170px;">Kontoinhaber</td><td>${esc(holder)}</td></tr>
+        <tr><td style="padding:4px 0;color:#777;">IBAN</td><td style="font-family:ui-monospace,Menlo,monospace;">${esc(SITE.bank.iban)}</td></tr>
+        <tr><td style="padding:4px 0;color:#777;">BIC</td><td style="font-family:ui-monospace,Menlo,monospace;">${esc(SITE.bank.bic)}</td></tr>
+        <tr><td style="padding:4px 0;color:#777;">Bank</td><td>${esc(SITE.bank.name)}</td></tr>
+        <tr><td style="padding:4px 0;color:#777;">Betrag</td><td style="font-weight:600;">${amount}</td></tr>
+        <tr><td style="padding:4px 0;color:#777;">Verwendungszweck</td><td style="font-family:ui-monospace,Menlo,monospace;">${esc(ref)}</td></tr>
+      </table>
+    </div>
+
+    <p style="font-size:13.5px;line-height:1.6;color:#555;margin-top:18px;">
+      Bitte geben Sie den Verwendungszweck genau so an, damit wir Ihre Zahlung
+      Ihrer Bestellung zuordnen können.
     </p>
 
     <p style="font-size:14px;color:#555;line-height:1.6;margin-top:28px;">
-      Soli Deo Gloria.<br>
+      Herzlichen Dank für Ihre Unterstützung.<br>
       Ihr Förderverein Klingende Kirche
     </p>
     `
@@ -125,21 +151,111 @@ export async function sendTicketConfirmation(
     from: mailFrom(),
     to: order.buyer_email,
     replyTo: replyTo(),
-    subject: `Ihre Karten für „${event.title}"`,
+    subject: `Ihre Bestellung für „${event.title}"`,
     html,
     text:
       `Vielen Dank, ${order.buyer_name}.\n\n` +
+      `Wir haben Ihre Bestellung erhalten. Bitte überweisen Sie den Betrag ` +
+      `an die unten stehende Bankverbindung. Ihre Karten werden an der ` +
+      `Abendkasse auf Ihren Namen hinterlegt.\n\n` +
       `Konzert: ${event.title}\n` +
       `Datum: ${event.dateLabel}${event.time ? " · " + event.time : ""}\n` +
       `Ort: ${event.venue}\n` +
       `Anzahl Karten: ${quantityLabel}\n` +
       `Bestellnummer: ${order.id}\n` +
       `Betrag: ${amount}\n\n` +
-      `Bestellung einsehen oder stornieren: ${portalUrl}`
+      `Bankverbindung:\n` +
+      `Kontoinhaber: ${holder}\n` +
+      `IBAN: ${SITE.bank.iban}\n` +
+      `BIC: ${SITE.bank.bic}\n` +
+      `Bank: ${SITE.bank.name}\n` +
+      `Betrag: ${amount}\n` +
+      `Verwendungszweck: ${ref}\n`
   });
 }
 
-export async function sendCancellationMail(
+/**
+ * An die Vereinsadresse: neue Bestellung ist eingegangen.
+ */
+export async function sendOrderReceivedToAdmin(
+  order: OrderRow,
+  event: EventMeta
+) {
+  const r = resend();
+  if (!r) return;
+  const to = adminRecipient();
+  if (!to) {
+    console.warn("[tickets/mail] no admin recipient configured");
+    return;
+  }
+
+  const amount = formatEUR(order.amount_cents, "de");
+  const quantityRegular = order.quantity - order.quantity_reduced;
+  const quantityLabel =
+    order.quantity_reduced > 0
+      ? `${order.quantity} (davon ${quantityRegular} regulär, ${order.quantity_reduced} ermäßigt)`
+      : String(order.quantity);
+  const adminUrl = `${SITE_URL()}/admin`;
+
+  const html = layout(
+    "Neue Bestellung",
+    `
+    <h1 style="font-family:'Instrument Serif',Georgia,serif;font-size:28px;margin:0 0 8px 0;color:#0A1033;">
+      Neue Bestellung eingegangen.
+    </h1>
+    <p style="font-size:14.5px;line-height:1.6;color:#333;">
+      Eine neue Kartenbestellung wartet auf Zahlungseingang.
+    </p>
+
+    <div style="margin:22px 0;padding:18px 20px;border:1px solid rgba(197,159,74,0.3);background:#FFFEFA;border-radius:10px;">
+      <table style="width:100%;font-size:14px;color:#222;">
+        <tr><td style="padding:3px 0;color:#777;width:150px;">Konzert</td><td>${esc(event.title)}</td></tr>
+        <tr><td style="padding:3px 0;color:#777;">Datum</td><td>${esc(event.dateLabel)}${event.time ? " · " + esc(event.time) : ""}</td></tr>
+        <tr><td style="padding:3px 0;color:#777;">Besteller</td><td>${esc(order.buyer_name)}</td></tr>
+        <tr><td style="padding:3px 0;color:#777;">E-Mail</td><td><a href="mailto:${esc(order.buyer_email)}" style="color:#141E4E;">${esc(order.buyer_email)}</a></td></tr>
+        <tr><td style="padding:3px 0;color:#777;">Karten</td><td>${esc(quantityLabel)}</td></tr>
+        <tr><td style="padding:3px 0;color:#777;">Betrag</td><td style="font-weight:600;">${amount}</td></tr>
+        <tr><td style="padding:3px 0;color:#777;">Bestellnummer</td><td style="font-family:ui-monospace,Menlo,monospace;">${esc(order.id)}</td></tr>
+        <tr><td style="padding:3px 0;color:#777;">Verwendungszweck</td><td style="font-family:ui-monospace,Menlo,monospace;">${esc(reference(order, event))}</td></tr>
+      </table>
+    </div>
+
+    <p style="margin:12px 0 0;">
+      <a href="${adminUrl}" style="display:inline-block;background:#0A1033;color:#fff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:500;">
+        Im Admin öffnen
+      </a>
+    </p>
+
+    <p style="font-size:13px;color:#777;margin-top:16px;">
+      Sobald die Zahlung eingegangen ist, markieren Sie die Bestellung im Admin
+      als bezahlt.
+    </p>
+    `
+  );
+
+  await r.emails.send({
+    from: mailFrom(),
+    to,
+    replyTo: order.buyer_email,
+    subject: `Neue Bestellung · ${event.title} · ${order.buyer_name}`,
+    html,
+    text:
+      `Neue Bestellung eingegangen.\n\n` +
+      `Konzert: ${event.title}\n` +
+      `Datum: ${event.dateLabel}\n` +
+      `Besteller: ${order.buyer_name} <${order.buyer_email}>\n` +
+      `Karten: ${quantityLabel}\n` +
+      `Betrag: ${amount}\n` +
+      `Bestellnummer: ${order.id}\n` +
+      `Verwendungszweck: ${reference(order, event)}\n\n` +
+      `Admin: ${adminUrl}\n`
+  });
+}
+
+/**
+ * An den Besteller: Zahlungseingang ist bestätigt.
+ */
+export async function sendPaymentConfirmedToCustomer(
   order: OrderRow,
   event: EventMeta
 ) {
@@ -147,27 +263,80 @@ export async function sendCancellationMail(
   if (!r) return;
 
   const amount = formatEUR(order.amount_cents, "de");
-  const refunded = order.status === "refunded";
-
   const html = layout(
-    "Bestellung storniert",
+    "Zahlung erhalten",
     `
-    <h1 style="font-family:'Instrument Serif',Georgia,serif;font-size:30px;margin:0 0 10px 0;color:#0A1033;">
-      Stornierung bestätigt.
+    <h1 style="font-family:'Instrument Serif',Georgia,serif;font-size:30px;margin:0 0 8px 0;color:#0A1033;">
+      Wir haben Ihre Zahlung erhalten.
     </h1>
     <p style="font-size:15px;line-height:1.6;color:#333;">
-      ${
-        refunded
-          ? `Ihre Bestellung ist storniert, der Betrag von ${amount} wird in den nächsten Werktagen Ihrer Zahlungsmethode gutgeschrieben.`
-          : "Ihre noch offene Bestellung wurde storniert. Es wurde nichts berechnet."
-      }
+      Vielen Dank, ${esc(order.buyer_name)}. Ihre Karten für ${esc(event.title)}
+      sind verbindlich reserviert und werden an der Abendkasse auf Ihren Namen
+      hinterlegt.
     </p>
 
     <div style="margin:22px 0;padding:18px 20px;border:1px solid rgba(197,159,74,0.3);background:#FFFEFA;border-radius:10px;">
       <table style="width:100%;font-size:14px;color:#333;">
         <tr><td style="padding:3px 0;color:#777;width:140px;">Konzert</td><td>${esc(event.title)}</td></tr>
+        <tr><td style="padding:3px 0;color:#777;">Datum</td><td>${esc(event.dateLabel)}${event.time ? " · " + esc(event.time) : ""}</td></tr>
+        <tr><td style="padding:3px 0;color:#777;">Ort</td><td>${esc(event.venue)}</td></tr>
+        <tr><td style="padding:3px 0;color:#777;">Karten</td><td>${order.quantity}</td></tr>
+        <tr><td style="padding:3px 0;color:#777;">Betrag</td><td style="font-weight:600;">${amount}</td></tr>
+        <tr><td style="padding:3px 0;color:#777;">Bestellnummer</td><td style="font-family:ui-monospace,Menlo,monospace;">${esc(order.id)}</td></tr>
+      </table>
+    </div>
+
+    <p style="font-size:14px;color:#555;line-height:1.6;margin-top:24px;">
+      Wir freuen uns auf Ihren Besuch.<br>
+      Ihr Förderverein Klingende Kirche
+    </p>
+    `
+  );
+
+  await r.emails.send({
+    from: mailFrom(),
+    to: order.buyer_email,
+    replyTo: replyTo(),
+    subject: `Zahlung erhalten · „${event.title}"`,
+    html,
+    text:
+      `Wir haben Ihre Zahlung erhalten.\n\n` +
+      `Konzert: ${event.title}\n` +
+      `Datum: ${event.dateLabel}${event.time ? " · " + event.time : ""}\n` +
+      `Ort: ${event.venue}\n` +
+      `Karten: ${order.quantity}\n` +
+      `Betrag: ${amount}\n` +
+      `Bestellnummer: ${order.id}\n`
+  });
+}
+
+/**
+ * An den Besteller: Bestellung durch den Verein abgesagt.
+ */
+export async function sendOrderCancelledToCustomer(
+  order: OrderRow,
+  event: EventMeta
+) {
+  const r = resend();
+  if (!r) return;
+
+  const html = layout(
+    "Bestellung abgesagt",
+    `
+    <h1 style="font-family:'Instrument Serif',Georgia,serif;font-size:28px;margin:0 0 10px 0;color:#0A1033;">
+      Ihre Bestellung wurde abgesagt.
+    </h1>
+    <p style="font-size:15px;line-height:1.6;color:#333;">
+      Hallo ${esc(order.buyer_name)},<br>
+      Ihre Bestellung für ${esc(event.title)} ist storniert. Falls Sie den
+      Betrag bereits überwiesen haben, melden Sie sich bitte kurz bei uns,
+      damit wir die Rückerstattung veranlassen können.
+    </p>
+
+    <div style="margin:20px 0;padding:16px 20px;border:1px solid rgba(197,159,74,0.3);background:#FFFEFA;border-radius:10px;">
+      <table style="width:100%;font-size:14px;color:#333;">
+        <tr><td style="padding:3px 0;color:#777;width:140px;">Konzert</td><td>${esc(event.title)}</td></tr>
         <tr><td style="padding:3px 0;color:#777;">Datum</td><td>${esc(event.dateLabel)}</td></tr>
-        <tr><td style="padding:3px 0;color:#777;">Anzahl Karten</td><td>${order.quantity}</td></tr>
         <tr><td style="padding:3px 0;color:#777;">Bestellnummer</td><td style="font-family:ui-monospace,Menlo,monospace;">${esc(order.id)}</td></tr>
       </table>
     </div>
@@ -182,15 +351,14 @@ export async function sendCancellationMail(
     from: mailFrom(),
     to: order.buyer_email,
     replyTo: replyTo(),
-    subject: `Stornierung bestätigt · „${event.title}"`,
+    subject: `Bestellung abgesagt · „${event.title}"`,
     html,
     text:
-      `Stornierung bestätigt.\n\n` +
+      `Ihre Bestellung wurde abgesagt.\n\n` +
       `Konzert: ${event.title}\n` +
       `Datum: ${event.dateLabel}\n` +
       `Bestellnummer: ${order.id}\n\n` +
-      (refunded
-        ? `Der Betrag von ${amount} wird in den nächsten Werktagen zurück erstattet.`
-        : `Es wurde nichts berechnet.`)
+      `Falls Sie bereits überwiesen haben, melden Sie sich bitte kurz, damit ` +
+      `wir die Rückerstattung veranlassen können.\n`
   });
 }

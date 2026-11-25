@@ -185,10 +185,11 @@ export default function EventEditor({ initial, onClose }: Props) {
       setError(data?.error ?? `Fehler ${res.status}`);
       return;
     }
-    if (data?.warning === "stripe_sync_failed") {
+    if (data?.warning) {
       setWarning(
-        "Gespeichert, aber Stripe-Sync fehlgeschlagen: " +
-          (data.detail ?? "unbekannt")
+        `Gespeichert, aber Hinweis: ${data.warning}${
+          data.detail ? " · " + data.detail : ""
+        }`
       );
       return;
     }

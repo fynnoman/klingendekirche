@@ -12,10 +12,10 @@ import ContentHub from "./content/ContentHub";
 type Tab = "konzerte" | "bestellungen" | "inhalte";
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "Offen",
+  pending: "Wartet auf Zahlung",
   paid: "Bezahlt",
-  cancelled: "Storniert",
-  refunded: "Erstattet",
+  cancelled: "Abgesagt",
+  refunded: "Abgesagt",
   failed: "Fehlgeschlagen",
   expired: "Abgelaufen"
 };
@@ -23,7 +23,7 @@ const STATUS_TONE: Record<string, string> = {
   paid: "bg-emerald-50 text-emerald-700",
   pending: "bg-amber-50 text-amber-700",
   cancelled: "bg-neutral-100 text-neutral-600",
-  refunded: "bg-rose-50 text-rose-700",
+  refunded: "bg-neutral-100 text-neutral-600",
   failed: "bg-rose-50 text-rose-700",
   expired: "bg-neutral-100 text-neutral-500"
 };
@@ -82,12 +82,25 @@ export default function AdminDashboard({
     startTransition(() => router.refresh());
   }
 
-  async function refundOrder(orderId: string) {
-    if (!confirm("Bestellung stornieren bzw. bei bezahlten Bestellungen erstatten?"))
+  async function cancelOrder(orderId: string) {
+    if (!confirm("Bestellung absagen? Der Besteller wird per E-Mail informiert."))
       return;
     const res = await fetch(`/api/admin/orders/${orderId}/refund`, { method: "POST" });
     if (!res.ok) {
-      alert("Erstattung fehlgeschlagen.");
+      alert("Absage fehlgeschlagen.");
+      return;
+    }
+    startTransition(() => router.refresh());
+  }
+
+  async function markPaid(orderId: string) {
+    if (!confirm("Bestellung als bezahlt markieren? Der Besteller bekommt eine Bestätigung."))
+      return;
+    const res = await fetch(`/api/admin/orders/${orderId}/mark-paid`, {
+      method: "POST"
+    });
+    if (!res.ok) {
+      alert("Konnte nicht als bezahlt markiert werden.");
       return;
     }
     startTransition(() => router.refresh());
@@ -166,12 +179,11 @@ export default function AdminDashboard({
         )}
 
         {/* Stats */}
-        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard label="Bestellungen" value={stats.total} />
           <StatCard label="Bezahlt" value={stats.paid} />
           <StatCard label="Offen" value={stats.pending} />
-          <StatCard label="Erstattet" value={stats.refunded} />
-          <StatCard label="Bruttoumsatz" value={formatEUR(stats.gross_cents, "de")} />
+          <StatCard label="Einnahmen" value={formatEUR(stats.gross_cents, "de")} />
         </div>
 
         {tab === "konzerte" && (
@@ -199,14 +211,13 @@ export default function AdminDashboard({
                     <th className="px-4 py-3">Plätze</th>
                     <th className="px-4 py-3">Umsatz</th>
                     <th className="px-4 py-3">Verkauf</th>
-                    <th className="px-4 py-3">Stripe</th>
                     <th className="px-4 py-3 text-right">Aktion</th>
                   </tr>
                 </thead>
                 <tbody>
                   {events.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-4 py-10 text-center text-neutral-500">
+                      <td colSpan={7} className="px-4 py-10 text-center text-neutral-500">
                         Noch keine Konzerte. „+ Neues Konzert" anlegen.
                       </td>
                     </tr>
@@ -292,9 +303,6 @@ export default function AdminDashboard({
                           >
                             {e.sale_active ? "aktiv" : "inaktiv"}
                           </span>
-                        </td>
-                        <td className="px-4 py-3 font-mono text-[11px] text-neutral-500">
-                          {e.stripe_product_id ? "✓ synced" : "—"}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex flex-wrap justify-end gap-2">
@@ -428,12 +436,20 @@ export default function AdminDashboard({
                             >
                               Details
                             </button>
+                            {o.status === "pending" && (
+                              <button
+                                onClick={() => markPaid(o.id)}
+                                className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                              >
+                                Als bezahlt
+                              </button>
+                            )}
                             {(o.status === "paid" || o.status === "pending") && (
                               <button
-                                onClick={() => refundOrder(o.id)}
+                                onClick={() => cancelOrder(o.id)}
                                 className="rounded-full border border-royal-700/15 bg-white px-3 py-1.5 text-[11px] font-semibold text-royal-800 transition hover:border-rose-300 hover:text-rose-700"
                               >
-                                Stornieren
+                                Absagen
                               </button>
                             )}
                           </div>
@@ -454,7 +470,8 @@ export default function AdminDashboard({
           event={events.find((e) => e.id === detailOrder.event_id)}
           onClose={() => setDetailOrder(null)}
           onChanged={() => startTransition(() => router.refresh())}
-          onRefund={refundOrder}
+          onCancel={cancelOrder}
+          onMarkPaid={markPaid}
         />
       )}
     </section>

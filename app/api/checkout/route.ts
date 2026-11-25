@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { nanoid } from "nanoid";
-import { stripe } from "@/lib/stripe";
 import {
   getEventById,
   insertOrder,
-  reserveSeats,
-  releaseSeats
+  releaseSeats,
+  reserveSeats
 } from "@/lib/tickets/queries";
+import {
+  sendOrderReceivedToAdmin,
+  sendOrderReceivedToCustomer
+} from "@/lib/tickets/mail";
+import { formatEventDate } from "@/lib/tickets/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,14 +68,12 @@ export async function POST(req: Request) {
     );
   }
 
-  // Ermäßigte Karten nur zulassen, wenn im Event auch ein ermäßigter Preis gesetzt ist
   const hasReduced =
     typeof event.price_reduced_cents === "number" && event.price_reduced_cents > 0;
   if (quantityReduced > 0 && !hasReduced) {
     return NextResponse.json({ ok: false, error: "invalid_fields" }, { status: 400 });
   }
 
-  // Atomar Plätze reservieren (regulär + ermäßigt = Gesamtmenge)
   const reservation = await reserveSeats(eventId, totalQuantity);
   if (!reservation) {
     return NextResponse.json(
@@ -89,71 +91,8 @@ export async function POST(req: Request) {
     quantityReduced * (event.price_reduced_cents ?? 0);
   const orderId = `KK-${Date.now().toString(36).toUpperCase()}-${nanoid(5).toUpperCase()}`;
   const token = nanoid(32);
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ?? req.headers.get("origin") ?? "";
 
   try {
-    const line_items: Array<Record<string, unknown>> = [];
-    if (quantityRegular > 0) {
-      line_items.push(
-        event.stripe_price_id
-          ? { price: event.stripe_price_id, quantity: quantityRegular }
-          : {
-              quantity: quantityRegular,
-              price_data: {
-                currency: "eur",
-                unit_amount: event.price_cents,
-                product_data: {
-                  name: `Konzertkarte: ${event.title_de}`,
-                  description:
-                    `${event.date}${event.time ? " · " + event.time : ""}`
-                }
-              }
-            }
-      );
-    }
-    if (quantityReduced > 0) {
-      line_items.push(
-        event.stripe_price_reduced_id
-          ? { price: event.stripe_price_reduced_id, quantity: quantityReduced }
-          : {
-              quantity: quantityReduced,
-              price_data: {
-                currency: "eur",
-                unit_amount: event.price_reduced_cents ?? 0,
-                product_data: {
-                  name: `Konzertkarte (ermäßigt): ${event.title_de}`,
-                  description:
-                    `${event.date}${event.time ? " · " + event.time : ""}`
-                }
-              }
-            }
-      );
-    }
-
-    const session = await stripe().checkout.sessions.create({
-      mode: "payment",
-      customer_email: buyerEmail,
-      line_items: line_items as never,
-      metadata: {
-        order_id: orderId,
-        event_id: eventId,
-        quantity: String(totalQuantity),
-        quantity_reduced: String(quantityReduced),
-        token
-      },
-      payment_intent_data: {
-        metadata: {
-          order_id: orderId,
-          event_id: eventId,
-          token
-        }
-      },
-      success_url: `${siteUrl}/tickets/erfolg?session_id={CHECKOUT_SESSION_ID}&token=${token}`,
-      cancel_url: `${siteUrl}/tickets/${eventId}?cancelled=1`,
-      expires_at: Math.floor(Date.now() / 1000) + 60 * 30
-    });
-
     await insertOrder({
       id: orderId,
       token,
@@ -163,24 +102,60 @@ export async function POST(req: Request) {
       quantity: totalQuantity,
       quantityReduced,
       amountCents,
-      status: "pending",
-      stripeSessionId: session.id
-    });
-
-    return NextResponse.json({
-      ok: true,
-      url: session.url,
-      sessionId: session.id,
-      orderId,
-      token
+      status: "pending"
     });
   } catch (err) {
     await releaseSeats(eventId, totalQuantity).catch(() => undefined);
-    console.error("[checkout] stripe error", err);
+    console.error("[checkout] insert failed", err);
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { ok: false, error: "stripe_failed", detail: msg },
-      { status: 502 }
+      { ok: false, error: "db_error", detail: msg },
+      { status: 500 }
     );
   }
+
+  const createdOrder = {
+    id: orderId,
+    token,
+    event_id: eventId,
+    buyer_name: buyerName,
+    buyer_email: buyerEmail,
+    quantity: totalQuantity,
+    quantity_reduced: quantityReduced,
+    amount_cents: amountCents,
+    currency: "eur",
+    status: "pending" as const,
+    stripe_session_id: null,
+    stripe_payment_intent_id: null,
+    stripe_charge_id: null,
+    stripe_refund_id: null,
+    note: null,
+    created_at: new Date().toISOString(),
+    paid_at: null,
+    cancelled_at: null,
+    checked_in_at: null,
+    checked_in_count: 0
+  };
+  const eventMeta = {
+    title: event.title_de,
+    dateLabel: formatEventDate(event.date, "de"),
+    time: event.time,
+    venue: event.venue_de
+  };
+
+  await Promise.all([
+    sendOrderReceivedToCustomer(createdOrder, eventMeta).catch((err) =>
+      console.error("[checkout] customer mail failed", err)
+    ),
+    sendOrderReceivedToAdmin(createdOrder, eventMeta).catch((err) =>
+      console.error("[checkout] admin mail failed", err)
+    )
+  ]);
+
+  return NextResponse.json({
+    ok: true,
+    orderId,
+    token,
+    redirectUrl: `/tickets/erfolg?token=${encodeURIComponent(token)}`
+  });
 }

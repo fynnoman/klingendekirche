@@ -5,10 +5,10 @@ import type { EventRow, OrderRow } from "@/lib/tickets/types";
 import { formatEUR } from "@/lib/tickets/types";
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "Offen",
+  pending: "Wartet auf Zahlung",
   paid: "Bezahlt",
-  cancelled: "Storniert",
-  refunded: "Erstattet",
+  cancelled: "Abgesagt",
+  refunded: "Abgesagt",
   failed: "Fehlgeschlagen",
   expired: "Abgelaufen"
 };
@@ -23,13 +23,15 @@ export default function OrderDetailPanel({
   event,
   onClose,
   onChanged,
-  onRefund
+  onCancel,
+  onMarkPaid
 }: {
   order: OrderRow;
   event?: EventRow;
   onClose: () => void;
   onChanged: () => void;
-  onRefund: (orderId: string) => void;
+  onCancel: (orderId: string) => void;
+  onMarkPaid: (orderId: string) => void;
 }) {
   const [order, setOrder] = useState(initialOrder);
   const [buyerName, setBuyerName] = useState(initialOrder.buyer_name);
@@ -106,15 +108,21 @@ export default function OrderDetailPanel({
       setFb({
         kind: "error",
         text:
-          data?.error === "not_paid"
-            ? "Nur bei bezahlten Bestellungen möglich."
+          data?.error === "invalid_state"
+            ? "Mail-Versand nur bei offenen oder bezahlten Bestellungen möglich."
             : data?.detail
               ? `Fehler: ${data.detail}`
               : "Mail-Versand fehlgeschlagen."
       });
       return;
     }
-    setFb({ kind: "success", text: `Bestätigung erneut an ${order.buyer_email} verschickt.` });
+    setFb({
+      kind: "success",
+      text:
+        order.status === "paid"
+          ? `Zahlungsbestätigung erneut an ${order.buyer_email} verschickt.`
+          : `Überweisungsinfo erneut an ${order.buyer_email} verschickt.`
+    });
   }
 
   return (
@@ -243,24 +251,43 @@ export default function OrderDetailPanel({
           <section className="space-y-3">
             <h3 className="eyebrow">Aktionen</h3>
             <div className="flex flex-wrap gap-3">
+              {order.status === "pending" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onMarkPaid(order.id);
+                    onClose();
+                  }}
+                  className="rounded-full bg-emerald-600 px-5 py-2 text-[13px] font-semibold text-white transition hover:bg-emerald-700"
+                >
+                  Als bezahlt markieren
+                </button>
+              )}
               <button
                 type="button"
                 onClick={resendMail}
-                disabled={sendingMail || order.status !== "paid"}
+                disabled={
+                  sendingMail ||
+                  (order.status !== "paid" && order.status !== "pending")
+                }
                 className="rounded-full bg-royal-800 px-5 py-2 text-[13px] font-semibold text-cream-50 transition hover:bg-royal-700 disabled:opacity-50"
               >
-                {sendingMail ? "Sendet …" : "Bestätigung erneut senden"}
+                {sendingMail
+                  ? "Sendet …"
+                  : order.status === "paid"
+                    ? "Zahlungsbestätigung erneut senden"
+                    : "Überweisungsinfo erneut senden"}
               </button>
               {(order.status === "paid" || order.status === "pending") && (
                 <button
                   type="button"
                   onClick={() => {
-                    onRefund(order.id);
+                    onCancel(order.id);
                     onClose();
                   }}
                   className="rounded-full border border-rose-200 bg-rose-50 px-5 py-2 text-[13px] font-semibold text-rose-700 transition hover:bg-rose-100"
                 >
-                  Stornieren / Erstatten
+                  Bestellung absagen
                 </button>
               )}
             </div>
@@ -287,13 +314,12 @@ export default function OrderDetailPanel({
 
           <section className="rounded-xl border border-royal-700/10 bg-cream-50 px-4 py-3 text-[11px] text-neutral-500">
             <div>
-              Token (Kunden-Portal): <span className="font-mono">{order.token}</span>
+              Verwendungszweck:{" "}
+              <span className="font-mono">
+                {order.id}
+                {event ? ` · ${event.title_de}` : ""}
+              </span>
             </div>
-            {order.stripe_payment_intent_id && (
-              <div className="mt-1">
-                Stripe PI: <span className="font-mono">{order.stripe_payment_intent_id}</span>
-              </div>
-            )}
           </section>
         </div>
       </aside>

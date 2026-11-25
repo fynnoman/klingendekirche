@@ -5,10 +5,8 @@ import {
   insertEvent,
   listAllEvents,
   setEventArchived,
-  setEventStripeIds,
   updateEvent
 } from "@/lib/tickets/queries";
-import { syncEventToStripe } from "@/lib/tickets/stripeSync";
 import { slugifyTitle, type EventCategory, type EventInput } from "@/lib/tickets/types";
 
 export const runtime = "nodejs";
@@ -114,38 +112,13 @@ export async function POST(req: Request) {
       ? slugifyTitle(body.id)
       : slugifyTitle(`${normalized.title_de}-${normalized.date}`);
 
-  // Kollisions-Suffix
   const existing = await getEventById(id);
   if (existing) {
     id = `${id}-${Math.random().toString(36).slice(2, 6)}`;
   }
 
   const created = await insertEvent(id, normalized);
-
-  try {
-    const { productId, priceId, priceReducedId } = await syncEventToStripe(created);
-    if (
-      productId !== created.stripe_product_id ||
-      priceId !== created.stripe_price_id ||
-      priceReducedId !== created.stripe_price_reduced_id
-    ) {
-      await setEventStripeIds(created.id, productId, priceId, priceReducedId);
-    }
-  } catch (err) {
-    console.error("[admin/events] stripe sync on create failed", err);
-    return NextResponse.json(
-      {
-        ok: true,
-        event: created,
-        warning: "stripe_sync_failed",
-        detail: err instanceof Error ? err.message : String(err)
-      },
-      { status: 200 }
-    );
-  }
-
-  const fresh = await getEventById(created.id);
-  return NextResponse.json({ ok: true, event: fresh ?? created });
+  return NextResponse.json({ ok: true, event: created });
 }
 
 export async function PATCH(req: Request) {
@@ -174,30 +147,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   }
 
-  try {
-    const { productId, priceId, priceReducedId } = await syncEventToStripe(updated);
-    if (
-      productId !== updated.stripe_product_id ||
-      priceId !== updated.stripe_price_id ||
-      priceReducedId !== updated.stripe_price_reduced_id
-    ) {
-      await setEventStripeIds(updated.id, productId, priceId, priceReducedId);
-    }
-  } catch (err) {
-    console.error("[admin/events] stripe sync on update failed", err);
-    return NextResponse.json(
-      {
-        ok: true,
-        event: updated,
-        warning: "stripe_sync_failed",
-        detail: err instanceof Error ? err.message : String(err)
-      },
-      { status: 200 }
-    );
-  }
-
-  const fresh = await getEventById(id);
-  return NextResponse.json({ ok: true, event: fresh ?? updated });
+  return NextResponse.json({ ok: true, event: updated });
 }
 
 export async function DELETE(req: Request) {
@@ -213,19 +163,6 @@ export async function DELETE(req: Request) {
   if (!existing) {
     return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   }
-
   await setEventArchived(id, true);
-
-  // Stripe-Produkt archivieren (nicht löschen)
-  if (existing.stripe_product_id) {
-    try {
-      await (await import("@/lib/stripe")).stripe().products.update(
-        existing.stripe_product_id,
-        { active: false }
-      );
-    } catch (err) {
-      console.warn("[admin/events] archive product failed", err);
-    }
-  }
   return NextResponse.json({ ok: true });
 }

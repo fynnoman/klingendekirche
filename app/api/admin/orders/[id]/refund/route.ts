@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
 import { isAdminRequest } from "@/lib/admin-auth";
 import {
   getEventById,
@@ -7,11 +6,17 @@ import {
   markOrderCancelled,
   releaseSeats
 } from "@/lib/tickets/queries";
-import { sendCancellationMail } from "@/lib/tickets/mail";
+import { sendOrderCancelledToCustomer } from "@/lib/tickets/mail";
+import { formatEventDate } from "@/lib/tickets/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * Absagen einer Bestellung durch den Admin. Keine Stripe-Interaktion mehr
+ * (Zahlung läuft über Banküberweisung). Freigewordene Plätze werden wieder
+ * freigegeben und der Besteller per Mail informiert.
+ */
 export async function POST(
   _req: Request,
   context: { params: Promise<{ id: string }> }
@@ -25,43 +30,25 @@ export async function POST(
   if (!order) {
     return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   }
-  if (order.status === "cancelled" || order.status === "refunded" || order.status === "expired") {
+  if (
+    order.status === "cancelled" ||
+    order.status === "refunded" ||
+    order.status === "expired"
+  ) {
     return NextResponse.json({ ok: true, alreadyCancelled: true, order });
   }
 
-  let refundId: string | null = null;
-  if (order.status === "paid") {
-    const piId = order.stripe_payment_intent_id;
-    if (!piId) {
-      return NextResponse.json({ ok: false, error: "no_payment_intent" }, { status: 500 });
-    }
-    try {
-      const refund = await stripe().refunds.create({
-        payment_intent: piId,
-        metadata: { order_id: order.id, cancelled_via: "admin" }
-      });
-      refundId = refund.id;
-    } catch (err) {
-      console.error("[admin/refund] failed", err);
-      const msg = err instanceof Error ? err.message : String(err);
-      return NextResponse.json(
-        { ok: false, error: "refund_failed", detail: msg },
-        { status: 502 }
-      );
-    }
-  }
-
-  const updated = await markOrderCancelled({ orderId: order.id, refundId });
+  const updated = await markOrderCancelled({ orderId: order.id, refundId: null });
   if (updated) {
     await releaseSeats(updated.event_id, updated.quantity).catch(() => undefined);
     const e = await getEventById(updated.event_id).catch(() => null);
     if (e) {
-      await sendCancellationMail(updated, {
+      await sendOrderCancelledToCustomer(updated, {
         title: e.title_de,
-        dateLabel: e.date,
+        dateLabel: formatEventDate(e.date, "de"),
         time: e.time,
         venue: e.venue_de
-      }).catch((err) => console.error("[admin/refund] mail failed", err));
+      }).catch((err) => console.error("[admin/cancel] mail failed", err));
     }
   }
 

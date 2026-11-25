@@ -88,11 +88,12 @@ export default function TicketBuyForm({
                   ? "Der Verkauf ist derzeit geschlossen."
                   : err === "db_error"
                     ? "Datenbank nicht erreichbar. Bitte später erneut versuchen."
-                    : "Der Checkout konnte nicht gestartet werden. Bitte später erneut versuchen."
+                    : "Die Bestellung konnte nicht gespeichert werden. Bitte später erneut versuchen."
         });
         return;
       }
-      window.location.href = data.url as string;
+      window.location.href =
+        (data.redirectUrl as string) ?? "/tickets/erfolg";
     } catch {
       setState({
         kind: "error",
@@ -116,7 +117,7 @@ export default function TicketBuyForm({
               · Ermäßigt {formatEUR(priceReducedCents!, "de")}
             </>
           )}
-          . Zahlung per Karte, Apple Pay oder Google Pay.
+          . Zahlung bequem per Überweisung nach der Bestellung.
         </p>
       </div>
 
@@ -205,8 +206,8 @@ export default function TicketBuyForm({
         className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-70"
       >
         {state.kind === "sending"
-          ? "Weiterleiten …"
-          : "Weiter zur sicheren Zahlung"}
+          ? "Sendet …"
+          : "Verbindlich bestellen"}
       </button>
     </form>
   );

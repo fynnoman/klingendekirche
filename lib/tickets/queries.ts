@@ -256,6 +256,23 @@ export async function markOrderPaid(input: {
   return rows[0] ? mapOrderRow(rows[0]) : null;
 }
 
+/**
+ * Admin markiert eine offene Bestellung manuell als bezahlt (Zahlungseingang
+ * per Überweisung). Keine Stripe-Interaktion.
+ */
+export async function markOrderPaidManual(orderId: string): Promise<OrderRow | null> {
+  const q = sql();
+  const rows = (await q`
+    UPDATE orders
+    SET status = 'paid',
+        paid_at = COALESCE(paid_at, NOW())
+    WHERE id = ${orderId}
+      AND status IN ('pending','failed')
+    RETURNING *
+  `) as Row[];
+  return rows[0] ? mapOrderRow(rows[0]) : null;
+}
+
 export async function markOrderExpired(stripeSessionId: string): Promise<OrderRow | null> {
   const q = sql();
   const rows = (await q`

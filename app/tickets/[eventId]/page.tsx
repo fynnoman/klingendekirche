@@ -92,9 +92,11 @@ export default async function TicketBuyPage({
               </div>
 
               <p className="mt-4 text-[12px] leading-relaxed text-neutral-500">
-                Zahlung sicher über Stripe (Kreditkarte, Apple Pay, Google Pay).
-                Nach erfolgreicher Zahlung erhalten Sie sofort eine Bestätigung
-                per E-Mail.
+                Nach Ihrer Bestellung bekommen Sie umgehend eine E-Mail mit
+                unseren Bankdaten und dem Verwendungszweck. Mit dem
+                Zahlungseingang ist Ihr Platz verbindlich reserviert; die
+                Karten liegen am Konzertabend an der Abendkasse auf Ihren
+                Namen bereit.
               </p>
             </div>
 

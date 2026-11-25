@@ -1,19 +1,19 @@
 import { notFound } from "next/navigation";
 import PageHero from "@/components/PageHero";
-import OrderCancelButton from "./OrderCancelButton";
 import { getEventById, getOrderByToken } from "@/lib/tickets/queries";
 import { formatEUR, formatEventDate } from "@/lib/tickets/types";
+import { SITE } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Ihre Bestellung" };
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "Noch nicht bezahlt",
-  paid: "Bezahlt",
-  cancelled: "Storniert",
-  refunded: "Storniert, Geld erstattet",
-  failed: "Zahlung fehlgeschlagen",
-  expired: "Checkout abgelaufen"
+  pending: "Wartet auf Zahlungseingang",
+  paid: "Zahlung erhalten",
+  cancelled: "Abgesagt",
+  refunded: "Abgesagt",
+  failed: "Nicht angenommen",
+  expired: "Abgelaufen"
 };
 
 export default async function OrderPortalPage({
@@ -26,8 +26,10 @@ export default async function OrderPortalPage({
   if (!order) notFound();
 
   const event = await getEventById(order.event_id).catch(() => null);
-  const canCancel = order.status === "paid" || order.status === "pending";
-  const isActive = order.status === "paid" || order.status === "pending";
+  const isPending = order.status === "pending";
+  const isPaid = order.status === "paid";
+  const reference =
+    event ? `${order.id} · ${event.title_de}`.slice(0, 140) : order.id;
 
   return (
     <>
@@ -35,9 +37,11 @@ export default async function OrderPortalPage({
         eyebrow={`Bestellnummer ${order.id}`}
         title="Ihre Bestellung"
         subtitle={
-          isActive
-            ? "Hier sehen Sie Ihre Konzertkarten und können bei Bedarf stornieren."
-            : "Übersicht Ihrer Bestellung."
+          isPending
+            ? "Mit dem Zahlungseingang ist Ihr Platz verbindlich reserviert."
+            : isPaid
+              ? "Ihre Zahlung ist bei uns eingegangen. Die Karten liegen an der Abendkasse auf Ihren Namen bereit."
+              : "Übersicht Ihrer Bestellung."
         }
       />
 
@@ -51,9 +55,9 @@ export default async function OrderPortalPage({
                 </div>
                 <div
                   className={`mt-1 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[12px] font-medium ${
-                    order.status === "paid"
+                    isPaid
                       ? "bg-emerald-50 text-emerald-700"
-                      : order.status === "pending"
+                      : isPending
                         ? "bg-amber-50 text-amber-700"
                         : "bg-neutral-100 text-neutral-600"
                   }`}
@@ -94,7 +98,15 @@ export default async function OrderPortalPage({
                 <dt className="text-[10px] uppercase tracking-wider text-gold-600">
                   Karten
                 </dt>
-                <dd className="mt-1 text-sm text-royal-800">{order.quantity}</dd>
+                <dd className="mt-1 text-sm text-royal-800">
+                  {order.quantity}
+                  {order.quantity_reduced > 0 && (
+                    <span className="text-neutral-500">
+                      {" "}
+                      · davon {order.quantity_reduced} ermäßigt
+                    </span>
+                  )}
+                </dd>
               </div>
               <div className="bg-white px-5 py-4">
                 <dt className="text-[10px] uppercase tracking-wider text-gold-600">
@@ -124,25 +136,37 @@ export default async function OrderPortalPage({
               </div>
             </dl>
 
-            {canCancel ? (
-              <div className="mt-8 rounded-2xl border border-royal-700/10 bg-cream-100/70 p-5">
+            {isPending && (
+              <div className="mt-10 rounded-2xl border border-royal-700/10 bg-cream-100/70 p-6 sm:p-8">
                 <div className="text-[11px] uppercase tracking-[0.22em] text-gold-600">
-                  Stornierung
+                  Bitte überweisen Sie den Betrag an:
                 </div>
-                <p className="mt-2 text-[14px] leading-relaxed text-neutral-700">
-                  {order.status === "paid"
-                    ? "Sie können Ihre Bestellung bis 24 Stunden vor Konzertbeginn stornieren. Der Betrag wird dann auf die ursprüngliche Zahlungsmethode erstattet."
-                    : "Ihre Bestellung ist noch nicht bezahlt. Sie können sie jederzeit abbrechen."}
+                <dl className="mt-4 grid gap-3 text-[14px] text-neutral-800 sm:grid-cols-[180px_1fr]">
+                  <dt className="text-neutral-500">Kontoinhaber</dt>
+                  <dd>{SITE.bank.holder.de}</dd>
+
+                  <dt className="text-neutral-500">IBAN</dt>
+                  <dd className="font-mono tracking-wide">{SITE.bank.iban}</dd>
+
+                  <dt className="text-neutral-500">BIC</dt>
+                  <dd className="font-mono">{SITE.bank.bic}</dd>
+
+                  <dt className="text-neutral-500">Bank</dt>
+                  <dd>{SITE.bank.name}</dd>
+
+                  <dt className="text-neutral-500">Betrag</dt>
+                  <dd className="font-medium">
+                    {formatEUR(order.amount_cents, "de")}
+                  </dd>
+
+                  <dt className="text-neutral-500">Verwendungszweck</dt>
+                  <dd className="font-mono text-[13px]">{reference}</dd>
+                </dl>
+                <p className="mt-5 text-[13px] leading-relaxed text-neutral-600">
+                  Bitte geben Sie den Verwendungszweck genau so an, damit wir
+                  Ihre Zahlung Ihrer Bestellung zuordnen können.
                 </p>
-                <div className="mt-4">
-                  <OrderCancelButton token={order.token} />
-                </div>
               </div>
-            ) : (
-              <p className="mt-6 text-[13px] text-neutral-500">
-                Diese Bestellung ist abgeschlossen und kann nicht mehr verändert
-                werden.
-              </p>
             )}
           </div>
         </div>
