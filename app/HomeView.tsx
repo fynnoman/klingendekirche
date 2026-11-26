@@ -114,15 +114,26 @@ export default function HomeView({
 
                 <FadeIn delay={0.2}>
                   <div className="mt-10 flex flex-wrap items-center gap-4">
-                    <Link
-                      href={`/tickets/${featured.id}`}
-                      className="btn-primary text-base px-8 py-4"
-                    >
-                      {t("home.book_tickets")}
-                      <svg aria-hidden width="16" height="16" viewBox="0 0 20 20" fill="none">
-                        <path d="M4 10h12M12 5l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </Link>
+                    {featured.sale_active &&
+                    featured.price_cents > 0 &&
+                    featured.capacity > 0 ? (
+                      <Link
+                        href={`/tickets/${featured.id}`}
+                        className="btn-primary text-base px-8 py-4"
+                      >
+                        {t("home.book_tickets")}
+                        <svg aria-hidden width="16" height="16" viewBox="0 0 20 20" fill="none">
+                          <path d="M4 10h12M12 5l5 5-5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/termine#${featured.id}`}
+                        className="btn-primary text-base px-8 py-4"
+                      >
+                        {lang === "en" ? "Concert details" : "Zum Konzert"}
+                      </Link>
+                    )}
                     <Link href="/verein" className="btn-ghost text-base px-8 py-4">
                       {t("home.about_us")}
                     </Link>

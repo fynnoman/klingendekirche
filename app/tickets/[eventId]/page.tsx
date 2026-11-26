@@ -93,11 +93,10 @@ export default async function TicketBuyPage({
               </div>
 
               <p className="mt-4 text-[12px] leading-relaxed text-neutral-500">
-                Nach Ihrer Bestellung bekommen Sie umgehend eine E-Mail mit
-                unseren Bankdaten und dem Verwendungszweck. Mit dem
-                Zahlungseingang ist Ihr Platz verbindlich reserviert; die
-                Karten liegen am Konzertabend an der Abendkasse auf Ihren
-                Namen bereit.
+                Nach Ihrer Bestellung sehen Sie unsere Bankdaten mit dem
+                Verwendungszweck. Mit dem Zahlungseingang ist Ihr Platz
+                verbindlich reserviert; die Karten werden Ihnen anschließend
+                per Post an die angegebene Adresse zugesandt.
               </p>
             </div>
 
