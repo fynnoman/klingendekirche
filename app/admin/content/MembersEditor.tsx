@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { MemberKind } from "@/lib/content/types";
+import { adminGet, adminPost, AdminFetchError } from "@/lib/adminFetch";
 
 export default function MembersEditor() {
   const now = new Date().getFullYear();
@@ -16,17 +17,23 @@ export default function MembersEditor() {
   const load = useCallback(async () => {
     setLoading(true);
     setFeedback(null);
-    const res = await fetch(
-      `/api/admin/content/members?kind=${kind}&year=${year}`,
-      { cache: "no-store" }
-    );
-    const data = await res.json().catch(() => ({}));
-    if (data?.ok) {
-      setText((data.items as { name: string }[]).map((m) => m.name).join("\n"));
-    } else {
-      setText("");
+    setError(null);
+    try {
+      const data = await adminGet<{
+        ok: boolean;
+        items: { name: string }[];
+      }>(`/api/admin/content/members?kind=${kind}&year=${year}`);
+      if (data?.ok) {
+        setText((data.items ?? []).map((m) => m.name).join("\n"));
+      } else {
+        setText("");
+      }
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Laden fehlgeschlagen.");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [kind, year]);
 
   useEffect(() => {
@@ -41,18 +48,15 @@ export default function MembersEditor() {
       .split("\n")
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
-    const res = await fetch("/api/admin/content/members", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind, year, names })
-    });
-    const data = await res.json().catch(() => ({}));
-    setSaving(false);
-    if (!res.ok || data?.ok === false) {
-      setError(data?.error ?? `${res.status}`);
-      return;
+    try {
+      await adminPost("/api/admin/content/members", { kind, year, names });
+      setFeedback(`${names.length} Einträge für ${year} gespeichert.`);
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+    } finally {
+      setSaving(false);
     }
-    setFeedback(`${names.length} Einträge für ${year} gespeichert.`);
   }
 
   const years: number[] = [];

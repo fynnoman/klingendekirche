@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { EventCategory, EventRow } from "@/lib/tickets/types";
+import { adminFetch, AdminFetchError } from "@/lib/adminFetch";
 
 type Props = {
   initial: EventRow | null;
@@ -105,18 +106,17 @@ export default function EventEditor({ initial, onClose }: Props) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data?.ok === false) {
-        setError(
-          data?.hint
-            ? `Upload fehlgeschlagen: ${data?.error} (${data.hint})`
-            : `Upload fehlgeschlagen: ${data?.error ?? res.status}`
-        );
+      const data = await adminFetch<{ ok: boolean; url: string; hint?: string }>(
+        "/api/admin/upload",
+        { method: "POST", body: fd }
+      );
+      if (!data?.ok) {
+        setError("Upload fehlgeschlagen.");
         return;
       }
       set("image_url", data.url);
     } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setUploading(false);
@@ -173,27 +173,30 @@ export default function EventEditor({ initial, onClose }: Props) {
       archived: form.archived
     };
 
-    const res = await fetch("/api/admin/events", {
-      method: isEdit ? "PATCH" : "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json().catch(() => ({}));
-    setSaving(false);
-
-    if (!res.ok || data?.ok === false) {
-      setError(data?.error ?? `Fehler ${res.status}`);
-      return;
+    try {
+      const data = await adminFetch<{
+        ok: boolean;
+        warning?: string;
+        detail?: string;
+      }>("/api/admin/events", {
+        method: isEdit ? "PATCH" : "POST",
+        body: JSON.stringify(payload)
+      });
+      if (data?.warning) {
+        setWarning(
+          `Gespeichert, aber Hinweis: ${data.warning}${
+            data.detail ? " · " + data.detail : ""
+          }`
+        );
+        return;
+      }
+      onClose();
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+    } finally {
+      setSaving(false);
     }
-    if (data?.warning) {
-      setWarning(
-        `Gespeichert, aber Hinweis: ${data.warning}${
-          data.detail ? " · " + data.detail : ""
-        }`
-      );
-      return;
-    }
-    onClose();
   }
 
   return (

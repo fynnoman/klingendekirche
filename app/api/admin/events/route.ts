@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { isAdminRequest } from "@/lib/admin-auth";
 import {
+  countOrdersForEvent,
+  deleteEvent,
   getEventById,
   insertEvent,
   listAllEvents,
@@ -156,6 +158,7 @@ export async function DELETE(req: Request) {
   }
   const url = new URL(req.url);
   const id = url.searchParams.get("id") ?? "";
+  const permanent = url.searchParams.get("permanent") === "1";
   if (!id) {
     return NextResponse.json({ ok: false, error: "id_required" }, { status: 400 });
   }
@@ -163,6 +166,25 @@ export async function DELETE(req: Request) {
   if (!existing) {
     return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   }
+
+  if (permanent) {
+    const orders = await countOrdersForEvent(id);
+    if (orders > 0) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "has_orders",
+          orders,
+          detail:
+            "Dieses Konzert hat bereits Bestellungen und kann nicht gelöscht werden. Bitte archivieren."
+        },
+        { status: 409 }
+      );
+    }
+    await deleteEvent(id);
+    return NextResponse.json({ ok: true, deleted: true });
+  }
+
   await setEventArchived(id, true);
   return NextResponse.json({ ok: true });
 }

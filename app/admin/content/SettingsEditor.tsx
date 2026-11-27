@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { adminGet, adminPost, AdminFetchError } from "@/lib/adminFetch";
 
 type Values = Record<string, string>;
 
@@ -32,27 +33,32 @@ export default function SettingsEditor() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/admin/content/settings", { cache: "no-store" });
-      const data = await res.json().catch(() => ({}));
-      if (data?.ok) setValues((data.values as Values) ?? {});
-      setLoading(false);
+      try {
+        const data = await adminGet<{ ok: boolean; values: Values }>(
+          "/api/admin/content/settings"
+        );
+        if (data?.ok) setValues(data.values ?? {});
+      } catch (err) {
+        if (err instanceof AdminFetchError && err.status === 401) return;
+        setFeedback(err instanceof Error ? err.message : "Laden fehlgeschlagen.");
+      } finally {
+        setLoading(false);
+      }
     })();
   }, []);
 
   async function save() {
     setSaving(true);
     setFeedback(null);
-    const res = await fetch("/api/admin/content/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values)
-    });
-    setSaving(false);
-    if (!res.ok) {
-      setFeedback("Speichern fehlgeschlagen.");
-      return;
+    try {
+      await adminPost("/api/admin/content/settings", values);
+      setFeedback("Einstellungen gespeichert.");
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setFeedback(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+    } finally {
+      setSaving(false);
     }
-    setFeedback("Einstellungen gespeichert.");
   }
 
   return (

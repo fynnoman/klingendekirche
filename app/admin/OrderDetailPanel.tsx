@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { EventRow, OrderRow } from "@/lib/tickets/types";
 import { formatEUR } from "@/lib/tickets/types";
+import { adminPatch, adminPost, AdminFetchError } from "@/lib/adminFetch";
 
 const STATUS_LABEL: Record<string, string> = {
   pending: "Wartet auf Zahlung",
@@ -59,16 +60,11 @@ export default function OrderDetailPanel({
   }, [onClose]);
 
   async function patch(payload: Record<string, unknown>) {
-    const res = await fetch(`/api/admin/orders/${order.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || data?.ok === false) {
-      throw new Error(data?.error ?? `${res.status}`);
-    }
-    if (data?.order) setOrder(data.order as OrderRow);
+    const data = await adminPatch<{ ok: boolean; order?: OrderRow }>(
+      `/api/admin/orders/${order.id}`,
+      payload
+    );
+    if (data?.order) setOrder(data.order);
     onChanged();
   }
 
@@ -122,21 +118,24 @@ export default function OrderDetailPanel({
   async function resendMail() {
     setSendingMail(true);
     setFb({ kind: "idle" });
-    const res = await fetch(`/api/admin/orders/${order.id}/resend`, { method: "POST" });
-    const data = await res.json().catch(() => ({}));
-    setSendingMail(false);
-    if (!res.ok || data?.ok === false) {
+    try {
+      await adminPost(`/api/admin/orders/${order.id}/resend`, {});
+    } catch (err) {
+      setSendingMail(false);
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      const msg = err instanceof Error ? err.message : "";
       setFb({
         kind: "error",
         text:
-          data?.error === "invalid_state"
+          msg === "invalid_state"
             ? "Mail-Versand nur bei offenen oder bezahlten Bestellungen möglich."
-            : data?.detail
-              ? `Fehler: ${data.detail}`
+            : msg
+              ? `Fehler: ${msg}`
               : "Mail-Versand fehlgeschlagen."
       });
       return;
     }
+    setSendingMail(false);
     setFb({
       kind: "success",
       text:

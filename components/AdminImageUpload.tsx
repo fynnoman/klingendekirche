@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { adminFetch, AdminFetchError } from "@/lib/adminFetch";
 
 type Props = {
   value: string | null;
@@ -34,18 +35,17 @@ export default function AdminImageUpload({
       const fd = new FormData();
       fd.append("file", file);
       fd.append("folder", folder);
-      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data?.ok === false) {
-        setError(
-          data?.hint
-            ? `${data?.error ?? "upload_failed"} (${data.hint})`
-            : data?.error ?? `${res.status}`
-        );
+      const data = await adminFetch<{ ok: boolean; url: string; hint?: string }>(
+        "/api/admin/upload",
+        { method: "POST", body: fd }
+      );
+      if (!data?.ok) {
+        setError("Upload fehlgeschlagen.");
         return;
       }
-      onChange(data.url as string);
+      onChange(data.url);
     } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
       setError(err instanceof Error ? err.message : String(err));
     } finally {
       setUploading(false);

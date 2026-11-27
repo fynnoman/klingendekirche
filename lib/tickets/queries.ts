@@ -175,6 +175,20 @@ export async function setEventArchived(id: string, archived: boolean): Promise<v
   await q`UPDATE events SET archived = ${archived}, updated_at = NOW() WHERE id = ${id}`;
 }
 
+export async function countOrdersForEvent(eventId: string): Promise<number> {
+  const q = sql();
+  const rows = (await q`
+    SELECT COUNT(*)::int AS n FROM orders WHERE event_id = ${eventId}
+  `) as Row[];
+  const n = (rows[0] as { n?: number } | undefined)?.n;
+  return typeof n === "number" ? n : 0;
+}
+
+export async function deleteEvent(id: string): Promise<void> {
+  const q = sql();
+  await q`DELETE FROM events WHERE id = ${id}`;
+}
+
 /**
  * Atomar N Plätze reservieren. Gibt null zurück, wenn nicht genug Plätze
  * verfügbar sind oder der Verkauf inaktiv ist.

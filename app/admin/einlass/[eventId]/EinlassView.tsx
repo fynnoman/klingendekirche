@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { EventRow, OrderRow } from "@/lib/tickets/types";
 import { formatEventDate } from "@/lib/tickets/types";
+import { adminPatch, AdminFetchError } from "@/lib/adminFetch";
 
 export default function EinlassView({
   event,
@@ -39,12 +40,10 @@ export default function EinlassView({
         o.id === orderId ? { ...o, checked_in_count: safe, checked_in_at: safe > 0 ? (o.checked_in_at ?? new Date().toISOString()) : null } : o
       )
     );
-    const res = await fetch(`/api/admin/orders/${orderId}/check-in`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ count: safe })
-    });
-    if (!res.ok) {
+    try {
+      await adminPatch(`/api/admin/orders/${orderId}/check-in`, { count: safe });
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
       alert("Konnte Einlass nicht speichern.");
     }
   }

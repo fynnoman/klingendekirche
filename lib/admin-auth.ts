@@ -2,7 +2,18 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 
 const COOKIE_NAME = "kk_admin";
-const MAX_AGE_SEC = 60 * 60 * 8; // 8 hours
+const MAX_AGE_SEC = 60 * 60 * 24 * 14; // 14 Tage, rolling
+
+async function setSessionCookie(token: string): Promise<void> {
+  const jar = await cookies();
+  jar.set(COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: MAX_AGE_SEC
+  });
+}
 
 function secret(): string {
   const s = process.env.ADMIN_SESSION_SECRET;
@@ -53,7 +64,17 @@ export function passwordMatches(input: string): boolean {
 export async function isAdminRequest(): Promise<boolean> {
   const jar = await cookies();
   const c = jar.get(COOKIE_NAME);
-  return verifySession(c?.value);
+  const ok = verifySession(c?.value);
+  // Rolling session: bei jedem autorisierten Zugriff die Cookie-Lebenszeit
+  // auffrischen, damit Admins nicht mitten in der Arbeit rausgeworfen werden.
+  if (ok && c?.value) {
+    try {
+      await setSessionCookie(c.value);
+    } catch {
+      /* Request-Phase ohne Response: ignorieren. */
+    }
+  }
+  return ok;
 }
 
 export const ADMIN_COOKIE = COOKIE_NAME;

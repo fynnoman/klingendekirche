@@ -8,6 +8,7 @@ import { formatEUR } from "@/lib/tickets/types";
 import EventEditor from "./EventEditor";
 import OrderDetailPanel from "./OrderDetailPanel";
 import ContentHub from "./content/ContentHub";
+import { adminDelete, adminPost, AdminFetchError } from "@/lib/adminFetch";
 
 type Tab = "konzerte" | "bestellungen" | "inhalte";
 
@@ -50,7 +51,13 @@ export default function AdminDashboard({
   const [tab, setTab] = useState<Tab>("konzerte");
   const [editing, setEditing] = useState<EventRow | "new" | null>(null);
   const [detailOrder, setDetailOrder] = useState<OrderRow | null>(null);
+  const [showPast, setShowPast] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const visibleEvents = showPast
+    ? events
+    : events.filter((e) => !e.archived && e.date >= todayIso);
 
   // Pro-Konzert Umsatz aus Bestellungen summieren
   const revenueByEvent = new Map<string, number>();
@@ -72,55 +79,122 @@ export default function AdminDashboard({
   async function archiveEvent(id: string) {
     if (!confirm("Konzert archivieren? Es verschwindet aus der öffentlichen Übersicht."))
       return;
-    const res = await fetch(`/api/admin/events?id=${encodeURIComponent(id)}`, {
-      method: "DELETE"
-    });
-    if (!res.ok) {
+    try {
+      await adminDelete(`/api/admin/events?id=${encodeURIComponent(id)}`);
+      startTransition(() => router.refresh());
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
       alert("Archivieren fehlgeschlagen.");
-      return;
     }
-    startTransition(() => router.refresh());
+  }
+
+  async function unarchiveEvent(e: EventRow) {
+    try {
+      await fetch(`/api/admin/events`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: e.id,
+          title_de: e.title_de,
+          title_en: e.title_en,
+          subtitle_de: e.subtitle_de,
+          subtitle_en: e.subtitle_en,
+          date: e.date,
+          time: e.time,
+          venue_de: e.venue_de,
+          venue_en: e.venue_en,
+          description_de: e.description_de,
+          description_en: e.description_en,
+          category: e.category,
+          image_url: e.image_url,
+          price_cents: e.price_cents,
+          price_reduced_cents: e.price_reduced_cents,
+          capacity: e.capacity,
+          sale_active: e.sale_active,
+          highlight: e.highlight,
+          archived: false
+        })
+      });
+      startTransition(() => router.refresh());
+    } catch {
+      alert("Reaktivieren fehlgeschlagen.");
+    }
+  }
+
+  async function permanentlyDeleteEvent(id: string) {
+    if (
+      !confirm(
+        "Konzert endgültig löschen? Das geht nur, wenn noch keine Bestellungen eingegangen sind."
+      )
+    )
+      return;
+    try {
+      await adminDelete(
+        `/api/admin/events?id=${encodeURIComponent(id)}&permanent=1`
+      );
+      startTransition(() => router.refresh());
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      const msg = err instanceof Error ? err.message : "";
+      if (msg === "has_orders") {
+        alert(
+          "Dieses Konzert hat bereits Bestellungen und kann nicht endgültig gelöscht werden. Bitte archivieren."
+        );
+      } else {
+        alert("Löschen fehlgeschlagen.");
+      }
+    }
   }
 
   async function cancelOrder(orderId: string) {
     if (!confirm("Bestellung absagen? Der Besteller wird per E-Mail informiert."))
       return;
-    const res = await fetch(`/api/admin/orders/${orderId}/refund`, { method: "POST" });
-    if (!res.ok) {
+    try {
+      await adminPost(`/api/admin/orders/${orderId}/refund`, {});
+      startTransition(() => router.refresh());
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
       alert("Absage fehlgeschlagen.");
-      return;
     }
-    startTransition(() => router.refresh());
   }
 
   async function markPaid(orderId: string) {
     if (!confirm("Bestellung als bezahlt markieren? Der Besteller bekommt eine Bestätigung."))
       return;
-    const res = await fetch(`/api/admin/orders/${orderId}/mark-paid`, {
-      method: "POST"
-    });
-    if (!res.ok) {
+    try {
+      await adminPost(`/api/admin/orders/${orderId}/mark-paid`, {});
+      startTransition(() => router.refresh());
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
       alert("Konnte nicht als bezahlt markiert werden.");
-      return;
     }
-    startTransition(() => router.refresh());
   }
 
-  async function downloadCsv(eventId: string, title: string) {
-    const res = await fetch(`/api/admin/orders/export?event=${encodeURIComponent(eventId)}`);
-    if (!res.ok) {
+  async function downloadCsv(eventId: string, _title: string) {
+    try {
+      const res = await fetch(
+        `/api/admin/orders/export?event=${encodeURIComponent(eventId)}`
+      );
+      if (res.status === 401) {
+        window.location.href = "/admin/login";
+        return;
+      }
+      if (!res.ok) {
+        alert("Export fehlgeschlagen.");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `bestellungen-${eventId}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
       alert("Export fehlgeschlagen.");
-      return;
     }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `bestellungen-${eventId}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   }
 
   if (editing) {
@@ -190,15 +264,27 @@ export default function AdminDashboard({
           <>
             <div className="mt-12 flex flex-wrap items-center justify-between gap-3">
               <h2 className="display text-2xl text-royal-800 sm:text-3xl">
-                Konzerte ({events.length})
+                Konzerte ({visibleEvents.length}
+                {showPast ? "" : ` / ${events.length}`})
               </h2>
-              <button
-                type="button"
-                onClick={() => setEditing("new")}
-                className="btn-primary"
-              >
-                + Neues Konzert
-              </button>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2 text-[12.5px] text-neutral-700">
+                  <input
+                    type="checkbox"
+                    checked={showPast}
+                    onChange={(e) => setShowPast(e.target.checked)}
+                    className="h-4 w-4 rounded border-royal-700/30"
+                  />
+                  Archiv und Vergangenes zeigen
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setEditing("new")}
+                  className="btn-primary"
+                >
+                  + Neues Konzert
+                </button>
+              </div>
             </div>
 
             <div className="mt-6 overflow-hidden rounded-2xl border border-royal-700/10 bg-white">
@@ -222,7 +308,7 @@ export default function AdminDashboard({
                       </td>
                     </tr>
                   )}
-                  {events.map((e) => {
+                  {visibleEvents.map((e) => {
                     const daysUntil = Math.ceil(
                       (new Date(e.date + "T00:00:00Z").getTime() - Date.now()) /
                         (1000 * 60 * 60 * 24)
@@ -330,7 +416,7 @@ export default function AdminDashboard({
                             >
                               Bearbeiten
                             </button>
-                            {!e.archived && (
+                            {!e.archived ? (
                               <button
                                 type="button"
                                 onClick={() => archiveEvent(e.id)}
@@ -338,6 +424,23 @@ export default function AdminDashboard({
                               >
                                 Archiv
                               </button>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => unarchiveEvent(e)}
+                                  className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                                >
+                                  Reaktivieren
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => permanentlyDeleteEvent(e.id)}
+                                  className="rounded-full border border-royal-700/15 bg-white px-3 py-1.5 text-[11px] font-semibold text-neutral-700 transition hover:border-rose-300 hover:text-rose-700"
+                                >
+                                  Löschen
+                                </button>
+                              </>
                             )}
                           </div>
                         </td>

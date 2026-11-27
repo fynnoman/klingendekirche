@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import RichTextEditor from "@/components/RichTextEditor";
 import type { PageBlockRow } from "@/lib/content/types";
+import { adminGet, adminPost, AdminFetchError } from "@/lib/adminFetch";
 
 const KEY_LABELS: Record<string, string> = {
   "home.intro": "Startseite - Einleitungstext",
@@ -21,15 +22,24 @@ export default function BlocksEditor() {
 
   useEffect(() => {
     (async () => {
-      const res = await fetch("/api/admin/content/blocks", { cache: "no-store" });
-      const data = await res.json().catch(() => ({}));
-      if (data?.ok) {
-        setAllowed((data.allowed as string[]) ?? []);
-        const map: Record<string, PageBlockRow> = {};
-        for (const it of data.items as PageBlockRow[]) map[it.key] = it;
-        setItems(map);
+      try {
+        const data = await adminGet<{
+          ok: boolean;
+          allowed: string[];
+          items: PageBlockRow[];
+        }>("/api/admin/content/blocks");
+        if (data?.ok) {
+          setAllowed(data.allowed ?? []);
+          const map: Record<string, PageBlockRow> = {};
+          for (const it of data.items ?? []) map[it.key] = it;
+          setItems(map);
+        }
+      } catch (err) {
+        if (err instanceof AdminFetchError && err.status === 401) return;
+        setFeedback({ global: err instanceof Error ? err.message : "Laden fehlgeschlagen." });
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
   }, []);
 
@@ -37,22 +47,27 @@ export default function BlocksEditor() {
     setSaving({ ...saving, [key]: true });
     setFeedback({ ...feedback, [key]: "" });
     const current = items[key] ?? { key, body_de: "", body_en: "", updated_at: "" };
-    const res = await fetch("/api/admin/content/blocks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        key,
-        body_de: current.body_de,
-        body_en: current.body_en
-      })
-    });
-    const data = await res.json().catch(() => ({}));
-    setSaving({ ...saving, [key]: false });
-    if (res.ok && data?.ok) {
-      setItems({ ...items, [key]: data.item as PageBlockRow });
-      setFeedback({ ...feedback, [key]: "Gespeichert." });
-    } else {
-      setFeedback({ ...feedback, [key]: `Fehler: ${data?.error ?? res.status}` });
+    try {
+      const data = await adminPost<{ ok: boolean; item: PageBlockRow }>(
+        "/api/admin/content/blocks",
+        {
+          key,
+          body_de: current.body_de,
+          body_en: current.body_en
+        }
+      );
+      if (data?.ok) {
+        setItems({ ...items, [key]: data.item });
+        setFeedback({ ...feedback, [key]: "Gespeichert." });
+      }
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setFeedback({
+        ...feedback,
+        [key]: `Fehler: ${err instanceof Error ? err.message : "unbekannt"}`
+      });
+    } finally {
+      setSaving({ ...saving, [key]: false });
     }
   }
 

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AdminImageUpload from "@/components/AdminImageUpload";
 import type { PartnerRow } from "@/lib/content/types";
+import { adminDelete, adminGet, adminPost, AdminFetchError } from "@/lib/adminFetch";
 
 type FormState = {
   id: number | null;
@@ -39,10 +40,18 @@ export default function PartnerEditor() {
 
   async function reload() {
     setLoading(true);
-    const res = await fetch("/api/admin/content/partners", { cache: "no-store" });
-    const data = await res.json().catch(() => ({}));
-    if (data?.ok) setItems(data.items as PartnerRow[]);
-    setLoading(false);
+    setError(null);
+    try {
+      const data = await adminGet<{ ok: boolean; items: PartnerRow[] }>(
+        "/api/admin/content/partners"
+      );
+      if (data?.ok) setItems(data.items ?? []);
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Laden fehlgeschlagen.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -57,25 +66,31 @@ export default function PartnerEditor() {
     }
     setSaving(true);
     setError(null);
-    const res = await fetch("/api/admin/content/partners", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...editing, id: editing.id ?? undefined })
-    });
-    const data = await res.json().catch(() => ({}));
-    setSaving(false);
-    if (!res.ok || data?.ok === false) {
-      setError(data?.error ?? `${res.status}`);
-      return;
+    try {
+      await adminPost("/api/admin/content/partners", {
+        ...editing,
+        id: editing.id ?? undefined
+      });
+      setEditing(null);
+      await reload();
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+    } finally {
+      setSaving(false);
     }
-    setEditing(null);
-    await reload();
   }
 
   async function remove(id: number) {
     if (!confirm("Diesen Partner löschen?")) return;
-    await fetch(`/api/admin/content/partners?id=${id}`, { method: "DELETE" });
-    await reload();
+    setError(null);
+    try {
+      await adminDelete(`/api/admin/content/partners?id=${id}`);
+      await reload();
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen.");
+    }
   }
 
   if (editing) {

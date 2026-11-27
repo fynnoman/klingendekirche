@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function AdminLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -25,7 +26,9 @@ export default function AdminLoginForm() {
         setLoading(false);
         return;
       }
-      router.push("/admin");
+      const back = searchParams?.get("back") ?? "/admin";
+      const safeBack = back.startsWith("/admin") ? back : "/admin";
+      router.push(safeBack);
       router.refresh();
     } catch {
       setError("Verbindung fehlgeschlagen.");

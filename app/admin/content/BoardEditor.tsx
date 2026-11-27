@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { BoardMemberRow } from "@/lib/content/types";
+import { adminDelete, adminGet, adminPost, AdminFetchError } from "@/lib/adminFetch";
 
 export default function BoardEditor() {
   const [items, setItems] = useState<BoardMemberRow[]>([]);
@@ -11,10 +12,18 @@ export default function BoardEditor() {
 
   async function reload() {
     setLoading(true);
-    const res = await fetch("/api/admin/content/board", { cache: "no-store" });
-    const data = await res.json().catch(() => ({}));
-    if (data?.ok) setItems(data.items as BoardMemberRow[]);
-    setLoading(false);
+    setError(null);
+    try {
+      const data = await adminGet<{ ok: boolean; items: BoardMemberRow[] }>(
+        "/api/admin/content/board"
+      );
+      if (data?.ok) setItems(data.items ?? []);
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Laden fehlgeschlagen.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -30,30 +39,33 @@ export default function BoardEditor() {
   async function saveOne(m: BoardMemberRow) {
     setSaving(true);
     setError(null);
-    const res = await fetch("/api/admin/content/board", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      await adminPost("/api/admin/content/board", {
         id: m.id > 0 ? m.id : undefined,
         role_de: m.role_de,
         role_en: m.role_en,
         name: m.name,
         sort_order: m.sort_order
-      })
-    });
-    const data = await res.json().catch(() => ({}));
-    setSaving(false);
-    if (!res.ok || data?.ok === false) {
-      setError(data?.error ?? `${res.status}`);
-      return;
+      });
+      await reload();
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+    } finally {
+      setSaving(false);
     }
-    await reload();
   }
 
   async function remove(id: number) {
     if (!confirm("Diesen Vorstandseintrag löschen?")) return;
-    await fetch(`/api/admin/content/board?id=${id}`, { method: "DELETE" });
-    await reload();
+    setError(null);
+    try {
+      await adminDelete(`/api/admin/content/board?id=${id}`);
+      await reload();
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen.");
+    }
   }
 
   function addRow() {

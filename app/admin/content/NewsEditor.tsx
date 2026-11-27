@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import AdminImageUpload from "@/components/AdminImageUpload";
 import RichTextEditor from "@/components/RichTextEditor";
 import type { NewsRow } from "@/lib/content/types";
+import { adminDelete, adminGet, adminPost, AdminFetchError } from "@/lib/adminFetch";
 
 type FormState = {
   id: string;
@@ -63,10 +64,18 @@ export default function NewsEditor() {
 
   async function reload() {
     setLoading(true);
-    const res = await fetch("/api/admin/content/news", { cache: "no-store" });
-    const data = await res.json().catch(() => ({}));
-    if (data?.ok) setItems(data.items as NewsRow[]);
-    setLoading(false);
+    setError(null);
+    try {
+      const data = await adminGet<{ ok: boolean; items: NewsRow[] }>(
+        "/api/admin/content/news"
+      );
+      if (data?.ok) setItems(data.items ?? []);
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Laden fehlgeschlagen.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -77,10 +86,8 @@ export default function NewsEditor() {
     if (!editing) return;
     setSaving(true);
     setError(null);
-    const res = await fetch("/api/admin/content/news", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      await adminPost("/api/admin/content/news", {
         id: editing.id || undefined,
         title_de: editing.title_de,
         title_en: editing.title_en,
@@ -93,24 +100,29 @@ export default function NewsEditor() {
         image_url: editing.image_url,
         published_at: editing.published_at,
         archived: editing.archived
-      })
-    });
-    const data = await res.json().catch(() => ({}));
-    setSaving(false);
-    if (!res.ok || data?.ok === false) {
-      setError(data?.error ?? `${res.status}`);
-      return;
+      });
+      setEditing(null);
+      await reload();
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+    } finally {
+      setSaving(false);
     }
-    setEditing(null);
-    await reload();
   }
 
   async function remove(id: string) {
     if (!confirm("Diesen News-Artikel löschen?")) return;
-    await fetch(`/api/admin/content/news?id=${encodeURIComponent(id)}`, {
-      method: "DELETE"
-    });
-    await reload();
+    setError(null);
+    try {
+      await adminDelete(
+        `/api/admin/content/news?id=${encodeURIComponent(id)}`
+      );
+      await reload();
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen.");
+    }
   }
 
   if (editing) {

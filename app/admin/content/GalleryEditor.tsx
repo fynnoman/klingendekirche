@@ -7,6 +7,13 @@ import type {
   GalleryImageRow,
   GalleryRow
 } from "@/lib/content/types";
+import {
+  adminDelete,
+  adminFetch,
+  adminGet,
+  adminPost,
+  AdminFetchError
+} from "@/lib/adminFetch";
 
 type FormState = {
   id: string;
@@ -51,10 +58,18 @@ export default function GalleryEditor() {
 
   async function reload() {
     setLoading(true);
-    const res = await fetch("/api/admin/content/galleries", { cache: "no-store" });
-    const data = await res.json().catch(() => ({}));
-    if (data?.ok) setItems(data.items as GalleryRow[]);
-    setLoading(false);
+    setError(null);
+    try {
+      const data = await adminGet<{ ok: boolean; items: GalleryRow[] }>(
+        "/api/admin/content/galleries"
+      );
+      if (data?.ok) setItems(data.items ?? []);
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Laden fehlgeschlagen.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -62,12 +77,16 @@ export default function GalleryEditor() {
   }, []);
 
   async function openEdit(row: GalleryRow) {
-    const res = await fetch(
-      `/api/admin/content/galleries?id=${encodeURIComponent(row.id)}`,
-      { cache: "no-store" }
-    );
-    const data = await res.json().catch(() => ({}));
-    const imgs = (data?.images as GalleryImageRow[] | undefined) ?? [];
+    let imgs: GalleryImageRow[] = [];
+    try {
+      const data = await adminGet<{ images: GalleryImageRow[] }>(
+        `/api/admin/content/galleries?id=${encodeURIComponent(row.id)}`
+      );
+      imgs = data?.images ?? [];
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Laden fehlgeschlagen.");
+    }
     setEditing({
       id: row.id,
       title_de: row.title_de,
@@ -94,15 +113,20 @@ export default function GalleryEditor() {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("folder", "galleries");
-      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data?.ok === false) {
-        setError(data?.error ?? "upload_failed");
+      const data = await adminFetch<{ ok: boolean; url: string }>(
+        "/api/admin/upload",
+        { method: "POST", body: fd }
+      );
+      if (!data?.ok) {
+        setError("Upload fehlgeschlagen.");
         return;
       }
       setEditing((s) =>
         s ? { ...s, images: [...s.images, { image_url: data.url, caption_de: "" }] } : s
       );
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Upload fehlgeschlagen.");
     } finally {
       setUploadingImage(false);
     }
@@ -112,10 +136,8 @@ export default function GalleryEditor() {
     if (!editing) return;
     setSaving(true);
     setError(null);
-    const res = await fetch("/api/admin/content/galleries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      await adminPost("/api/admin/content/galleries", {
         id: editing.id || undefined,
         title_de: editing.title_de,
         title_en: editing.title_en,
@@ -132,24 +154,29 @@ export default function GalleryEditor() {
           caption_de: img.caption_de || null,
           sort_order: i
         }))
-      })
-    });
-    const data = await res.json().catch(() => ({}));
-    setSaving(false);
-    if (!res.ok || data?.ok === false) {
-      setError(data?.error ?? `${res.status}`);
-      return;
+      });
+      setEditing(null);
+      await reload();
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen.");
+    } finally {
+      setSaving(false);
     }
-    setEditing(null);
-    await reload();
   }
 
   async function remove(id: string) {
     if (!confirm("Diesen Beitrag und alle Bilder löschen?")) return;
-    await fetch(`/api/admin/content/galleries?id=${encodeURIComponent(id)}`, {
-      method: "DELETE"
-    });
-    await reload();
+    setError(null);
+    try {
+      await adminDelete(
+        `/api/admin/content/galleries?id=${encodeURIComponent(id)}`
+      );
+      await reload();
+    } catch (err) {
+      if (err instanceof AdminFetchError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen.");
+    }
   }
 
   if (editing) {
