@@ -33,11 +33,16 @@ function replyTo() {
   return process.env.MAIL_REPLY_TO ?? SITE.email;
 }
 
-function adminRecipient(): string | null {
-  const to = process.env.ORDER_NOTIFICATION_EMAIL?.trim();
-  if (to) return to;
-  const fallback = process.env.MAIL_REPLY_TO?.trim() ?? SITE.email;
-  return fallback || null;
+// Fester Zielbriefkasten für neue Bestellbenachrichtigungen. Fällt auf diese
+// Adresse zurück, falls in der Env nichts anderes gesetzt ist.
+const DEFAULT_ORDER_RECIPIENT = "info@klingende-kirche.de";
+
+function adminRecipient(): string {
+  return (
+    process.env.ORDER_NOTIFICATION_EMAIL?.trim() ||
+    process.env.MAIL_REPLY_TO?.trim() ||
+    DEFAULT_ORDER_RECIPIENT
+  );
 }
 
 function esc(s: string) {
@@ -153,10 +158,6 @@ export async function sendOrderReceivedToAdmin(
   const r = resend();
   if (!r) return;
   const to = adminRecipient();
-  if (!to) {
-    console.warn("[tickets/mail] no admin recipient configured");
-    return;
-  }
 
   const amount = formatEUR(order.amount_cents, "de");
   const quantityRegular = order.quantity - order.quantity_reduced;
